@@ -18,7 +18,7 @@ of `apk` before changing the device. It installs `curl`, `sing-box`, and
 an existing `/etc/sing-box/config.json`.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/main/getdomains-install.sh -o /tmp/getdomains-install.sh
+curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
 sh /tmp/getdomains-install.sh
 ```
 
