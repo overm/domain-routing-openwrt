@@ -3,23 +3,14 @@
 START=99
 
 start () {
-    {% if ansible_distribution_major_version >= "22" and country == "russia-inside" %}
+    {% if country == "russia-inside" %}
     DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst
     {% endif %}
-    {% if ansible_distribution_major_version >= "22" and country == "russia-outside" %}
+    {% if country == "russia-outside" %}
     DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-nfset.lst
     {% endif %}
-    {% if ansible_distribution_major_version >= "22" and country == "ukraine" %}
+    {% if country == "ukraine" %}
     DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Ukraine/inside-dnsmasq-nfset.lst
-    {% endif %}
-    {% if ansible_distribution_major_version < "22" and country == "russia-inside" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-ipset.lst
-    {% endif %}
-    {% if ansible_distribution_major_version < "22" and country == "russia-outside" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-ipset.lst
-    {% endif %}
-    {% if ansible_distribution_major_version < "22" and country == "ukraine" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Ukraine/inside-dnsmasq-ipset.lst
     {% endif %}
     count=0
     while true; do
@@ -36,7 +27,7 @@ start () {
         /etc/init.d/dnsmasq restart
     fi
 
-    {% if ansible_distribution_major_version >= "22" and (list_ip or list_community) %}
+    {% if list_ip or list_community %}
     echo "Flush sets"
     nft flush ruleset
     {% endif %}
