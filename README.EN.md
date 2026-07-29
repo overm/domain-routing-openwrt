@@ -30,6 +30,9 @@ sing-box check -c /etc/sing-box/config.json
 service sing-box restart
 ```
 
+When `tun0` appears, the installed net-device hotplug hook adds its default
+route to the `vpn` table automatically.
+
 ## Ansible role
 
 Public defaults:
@@ -59,7 +62,9 @@ Example:
 
 The role installs a starter configuration only when
 `/etc/sing-box/config.json` does not exist, so a subsequent Ansible run does not
-overwrite credentials. The inventory must contain an `[openwrt]` group.
+overwrite credentials. It restarts sing-box only when the configuration passes
+`sing-box check`; the placeholder configuration is left stopped for manual
+editing. The inventory must contain an `[openwrt]` group.
 
 ## Diagnostics and removal
 
@@ -68,8 +73,9 @@ sh getdomains-check.sh --lang=en
 sh getdomains-uninstall.sh
 ```
 
-The uninstaller removes policy-routing artifacts but deliberately keeps the
-sing-box package and configuration.
+The uninstaller removes policy-routing artifacts and its own downloaded domain
+list, but preserves other dnsmasq include files as well as the sing-box package
+and configuration.
 
 ## License
 
