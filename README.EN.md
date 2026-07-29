@@ -1,117 +1,76 @@
-Domain routing OpenWrt
-=========
+# Domain routing for OpenWrt 25+
 
-Configuring domain routing on Openwrt router.
+This project routes selected domains and IPv4 networks through a **sing-box**
+TUN interface. OpenWrt 25 or newer is required. Older OpenWrt releases and
+WireGuard, AmneziaWG, OpenVPN, and tun2socks are no longer supported.
 
+## OpenWrt 25 changes
 
-Role Variables
---------------
+OpenWrt 25 migrated its package manager from `opkg` to **`apk`**. It did not
+migrate to Debian/Ubuntu's `apt`. Both installation paths therefore use
+`apk update`, `apk add`, and `apk info -e`. The project targets firewall4/nftables
+only and uses dnsmasq `nfset` lists; all legacy ipset compatibility code has
+been removed.
 
-Lists
-```
-  country: russia-inside|russia-outside|ukraine
-  list_domains: true|falase
+The standalone installer checks both the OpenWrt major version and the presence
+of `apk` before changing the device. It installs `curl`, `sing-box`, and
+`dnsmasq-full`, creates the `tun0` firewall/routing configuration, and preserves
+an existing `/etc/sing-box/config.json`.
 
-  list_subnet: false|true
-  list_ip: false|true
-  list_community: false|true
-```
-
-Tunnel
-```
-  tunnel: wg|openvpn|singbox|tun2socks
-```
-
-DoH or DoT
-```
-  dns_encrypt: false|dnscrypt|stubby
+```sh
+curl -fsSL https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/main/getdomains-install.sh -o /tmp/getdomains-install.sh
+sh /tmp/getdomains-install.sh
 ```
 
-Nano package
-```
-  nano: true|false
-```
+The generated sing-box file contains `CHANGE_ME` placeholders. Edit it and
+validate it before starting the service:
 
-Acces from wg network to router
-```
-  wg_access: false|true
-  wg_access_network: 192.168.80.0/24 (for example)
+```sh
+sing-box check -c /etc/sing-box/config.json
+service sing-box restart
 ```
 
-If wireguard is used:
+## Ansible role
+
+Public defaults:
+
+```yaml
+tunnel: singbox                 # the only accepted value
+country: russia-inside          # russia-inside, russia-outside, ukraine
+list_domains: true
+list_subnet: false
+list_ip: false
+list_community: false
+dns_encrypt: false              # false, dnscrypt-proxy2, stubby
+nano: true
 ```
-    wg_server_address: wg-server-host
-    wg_private_key: privatekey-client
-    wg_public_key: publickey-client
-    wg_preshared_key: presharedkey-client
-    wg_client_port: 51820
-    wg_client_address: ip-client
 
-    wg_access: true
-    wg_access_network: wg-network
-```
+Example:
 
-Dependencies
-------------
-
-[gekmihesg.openwrt](https://github.com/gekmihesg/ansible-openwrt)
-
-
-Example Playbook
-----------------
-
-The inventory file must contain the group `[openwrt]` where your router will be located.
-
-
-Wireguard, only domains, stubby, Russia, acces from wg network, host 192.168.1.1
-```
-- hosts: 192.168.1.1
+```yaml
+- hosts: openwrt
   remote_user: root
-
   roles:
     - itdoginfo.domain_routing_openwrt
-
-  vars:
-    tunnel: wg
-    dns_encrypt: stubby
-    country: russia-inside
-    
-    wg_access: true
-    wg_server_address: wg-server-host
-    wg_private_key: privatekey-client
-    wg_public_key: publickey-client
-    wg_preshared_key: presharedkey-client
-    wg_listen_port: 51820
-    wg_client_port: 51820
-    wg_client_address: ip-client
-    wg_access_network: wg-network
-```
-
-Sing-box, stubby, Russia
-```
-- hosts: 192.168.1.1
-  remote_user: root
-
-  roles:
-    - itdoginfo.domain_routing_openwrt
-
   vars:
     tunnel: singbox
-    dns_encrypt: stubby
     country: russia-inside
-
-  tasks:
-  - name: sing-box config
-    template:
-      src: "templates/openwrt-sing-box-json.j2"
-      dest: "/etc/sing-box/config.json"
-      mode: 0644
-    notify:
-      - Restart sing-box
-      - Restart network
 ```
 
-License
--------
+The role installs a starter configuration only when
+`/etc/sing-box/config.json` does not exist, so a subsequent Ansible run does not
+overwrite credentials. The inventory must contain an `[openwrt]` group.
 
-GNU General Public License v3.0
+## Diagnostics and removal
+
+```sh
+sh getdomains-check.sh --lang=en
+sh getdomains-uninstall.sh
+```
+
+The uninstaller removes policy-routing artifacts but deliberately keeps the
+sing-box package and configuration.
+
+## License
+
+GNU General Public License v3.0.
