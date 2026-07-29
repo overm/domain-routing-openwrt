@@ -16,7 +16,7 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 `tun0` и не перезаписывает существующий `/etc/sing-box/config.json`.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/main/getdomains-install.sh -o /tmp/getdomains-install.sh
+curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
 sh /tmp/getdomains-install.sh
 ```
 
