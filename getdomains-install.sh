@@ -18,7 +18,7 @@ fi
 
 green "Refreshing apk indexes"
 apk update
-apk add curl sing-box dnsmasq-full
+apk add curl sing-box dnsmasq-full nano
 
 AVAILABLE_SPACE=$(df -k / | awk 'NR == 2 { print $4 }')
 if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
@@ -196,5 +196,11 @@ grep -q '/etc/init.d/getdomains start' /etc/crontabs/root 2>/dev/null || echo '0
 /etc/init.d/firewall restart
 /etc/init.d/network restart
 /etc/init.d/getdomains start
+
+printf 'Edit /etc/sing-box/config.json in nano now? [y/N]: '
+read -r EDIT_SINGBOX
+case ${EDIT_SINGBOX:-n} in
+    y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
+esac
 
 green "Done. Validate /etc/sing-box/config.json, then run: service sing-box restart"

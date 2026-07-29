@@ -13,10 +13,11 @@ only and uses dnsmasq `nfset` lists; all legacy ipset compatibility code has
 been removed.
 
 The standalone installer checks both the OpenWrt major version and the presence
-of `apk` before changing the device. It installs `curl`, `sing-box`, and
-`dnsmasq-full`, saves the diagnostics and removal commands in `/usr/bin`, creates
-the `tun0` firewall/routing configuration, and preserves an existing
-`/etc/sing-box/config.json`.
+of `apk` before changing the device. It installs `curl`, `sing-box`,
+`dnsmasq-full`, and `nano`, saves the diagnostics and removal commands in
+`/usr/bin`, creates the `tun0` firewall/routing configuration, and preserves an
+existing `/etc/sing-box/config.json`. At the end of installation, the script
+offers to open that configuration in `nano` immediately.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh

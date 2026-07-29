@@ -12,9 +12,10 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 и списки dnsmasq `nfset`; код совместимости со старым ipset удалён.
 
 Автономный установщик до внесения изменений проверяет версию OpenWrt и наличие
-`apk`. Он устанавливает `curl`, `sing-box` и `dnsmasq-full`, создаёт правила для
-`tun0`, сохраняет команды диагностики и удаления в `/usr/bin` и не
-перезаписывает существующий `/etc/sing-box/config.json`.
+`apk`. Он устанавливает `curl`, `sing-box`, `dnsmasq-full` и `nano`, создаёт
+правила для `tun0`, сохраняет команды диагностики и удаления в `/usr/bin` и не
+перезаписывает существующий `/etc/sing-box/config.json`. В конце установки
+скрипт предлагает сразу открыть этот конфиг в `nano`.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
