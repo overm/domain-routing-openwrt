@@ -13,7 +13,8 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 
 Автономный установщик до внесения изменений проверяет версию OpenWrt и наличие
 `apk`. Он устанавливает `curl`, `sing-box` и `dnsmasq-full`, создаёт правила для
-`tun0` и не перезаписывает существующий `/etc/sing-box/config.json`.
+`tun0`, сохраняет команды диагностики и удаления в `/usr/bin` и не
+перезаписывает существующий `/etc/sing-box/config.json`.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
@@ -73,12 +74,13 @@ inventory должна быть группа `[openwrt]`.
 ## Проверка и удаление
 
 ```sh
-sh getdomains-check.sh --lang=ru
-sh getdomains-uninstall.sh
+getdomains-check --lang=ru
+getdomains-uninstall
 ```
 
 Скрипт удаления убирает правила доменной маршрутизации, но намеренно сохраняет
-пакет и конфигурацию sing-box.
+пакет и конфигурацию sing-box. Обе команды загружаются установщиком и остаются
+доступны локально после очистки каталога `/tmp`; при удалении они также удаляются.
 
 ## Лицензия
 
