@@ -16,6 +16,15 @@
       - tunnel == "singbox"
     fail_msg: "singbox is the only supported tunnel."
 
+- name: Validate list refresh settings
+  assert:
+    that:
+      - not list_domains or country in domain_list_urls
+      - getdomains_connect_timeout | int > 0
+      - getdomains_max_time | int > 0
+      - getdomains_retries | int >= 0
+    fail_msg: "Invalid country or getdomains download settings."
+
 - name: Refresh apk indexes
   command: apk update
   changed_when: false
