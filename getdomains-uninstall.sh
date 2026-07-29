@@ -2,7 +2,7 @@
 
 set -eu
 
-rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpnroute
+rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpnroute /etc/hotplug.d/net/30-vpnroute
 sed -i '\|/etc/init.d/getdomains start|d' /etc/crontabs/root
 sed -i '/^[[:space:]]*99[[:space:]]\+vpn$/d' /etc/iproute2/rt_tables
 
@@ -13,7 +13,8 @@ done
 uci commit network
 uci commit firewall
 
-rm -rf /tmp/dnsmasq.d /tmp/lst
+rm -f /tmp/dnsmasq.d/domains.lst
+rm -rf /tmp/lst
 /etc/init.d/cron restart
 /etc/init.d/firewall restart
 /etc/init.d/network restart

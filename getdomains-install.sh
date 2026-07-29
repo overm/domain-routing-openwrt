@@ -26,7 +26,7 @@ if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
     exit 1
 fi
 
-mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
+mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/sing-box /etc/hotplug.d/iface /etc/hotplug.d/net /etc/iproute2
 
 if [ ! -s /etc/sing-box/config.json ]; then
     cat > /etc/sing-box/config.json <<'EOF'
@@ -101,11 +101,12 @@ EOF
 grep -q '^99[[:space:]]\+vpn$' /etc/iproute2/rt_tables 2>/dev/null || echo '99 vpn' >> /etc/iproute2/rt_tables
 cat > /etc/hotplug.d/iface/30-vpnroute <<'EOF'
 #!/bin/sh
-[ "$ACTION" = ifup ] || exit 0
 sleep 2
+[ -d /sys/class/net/tun0 ] || exit 0
 ip route replace table vpn default dev tun0
 EOF
 chmod 0755 /etc/hotplug.d/iface/30-vpnroute
+cp /etc/hotplug.d/iface/30-vpnroute /etc/hotplug.d/net/30-vpnroute
 
 printf 'Select the domain list: 1) Russia inside 2) Russia outside 3) Ukraine [1]: '
 read -r COUNTRY

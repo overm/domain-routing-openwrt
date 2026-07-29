@@ -66,11 +66,14 @@
     state: started
     enabled: true
 
-- name: Install sing-box route hotplug script
+- name: Install sing-box route hotplug scripts
   template:
     src: openwrt-30-vpnroute.j2
-    dest: /etc/hotplug.d/iface/30-vpnroute
+    dest: "{{ item }}"
     mode: "0755"
+  loop:
+    - /etc/hotplug.d/iface/30-vpnroute
+    - /etc/hotplug.d/net/30-vpnroute
 
 - name: Register vpn routing table
   lineinfile:
@@ -115,13 +118,30 @@
     dest: /etc/sing-box/config.json
     mode: "0600"
     force: false
-  notify: Restart sing-box
+  register: singbox_configuration
 
 - name: Configure sing-box service
   template:
     src: config-sing-box.j2
     dest: /etc/config/sing-box
     mode: "0600"
+  register: singbox_service_configuration
+
+- name: Validate sing-box configuration
+  shell: >-
+    ! grep -q 'CHANGE_ME' /etc/sing-box/config.json &&
+    sing-box check -c /etc/sing-box/config.json
+  register: singbox_configuration_check
+  changed_when: false
+  failed_when: false
+
+- name: Queue sing-box restart for a valid changed configuration
+  debug:
+    msg: The valid sing-box configuration or service settings changed.
+  when:
+    - singbox_configuration_check.rc == 0
+    - singbox_configuration.changed or singbox_service_configuration.changed
+  changed_when: true
   notify: Restart sing-box
 
 - name: Configure marked traffic routing rule

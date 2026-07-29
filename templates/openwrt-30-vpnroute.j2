@@ -1,4 +1,5 @@
 #!/bin/sh
 
-sleep 10
+sleep 2
+[ -d /sys/class/net/tun0 ] || exit 0
 ip route replace table vpn default dev tun0
