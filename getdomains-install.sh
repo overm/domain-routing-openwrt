@@ -26,6 +26,24 @@ if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
     exit 1
 fi
 
+SCRIPT_BASE_URL=${GETDOMAINS_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/overm/domain-routing-openwrt/master}
+for script in getdomains-check getdomains-uninstall; do
+    temporary="/tmp/${script}.sh.$$"
+    rm -f "$temporary"
+    if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 \
+        --retry-delay 2 "$SCRIPT_BASE_URL/${script}.sh" -o "$temporary" || \
+        ! sh -n "$temporary"; then
+        rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$
+        red "Could not download ${script}.sh. No router configuration was changed."
+        exit 1
+    fi
+done
+for script in getdomains-check getdomains-uninstall; do
+    temporary="/tmp/${script}.sh.$$"
+    chmod 0755 "$temporary"
+    mv -f "$temporary" "/usr/bin/$script"
+done
+
 mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
 
 if [ ! -s /etc/sing-box/config.json ]; then

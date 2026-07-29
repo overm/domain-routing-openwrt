@@ -14,8 +14,9 @@ been removed.
 
 The standalone installer checks both the OpenWrt major version and the presence
 of `apk` before changing the device. It installs `curl`, `sing-box`, and
-`dnsmasq-full`, creates the `tun0` firewall/routing configuration, and preserves
-an existing `/etc/sing-box/config.json`.
+`dnsmasq-full`, saves the diagnostics and removal commands in `/usr/bin`, creates
+the `tun0` firewall/routing configuration, and preserves an existing
+`/etc/sing-box/config.json`.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
@@ -75,12 +76,14 @@ and `community_list_url`.
 ## Diagnostics and removal
 
 ```sh
-sh getdomains-check.sh --lang=en
-sh getdomains-uninstall.sh
+getdomains-check --lang=en
+getdomains-uninstall
 ```
 
 The uninstaller removes policy-routing artifacts but deliberately keeps the
-sing-box package and configuration.
+sing-box package and configuration. The installer downloads both commands so
+they remain available locally after `/tmp` is cleared; uninstalling removes the
+commands as well.
 
 ## License
 

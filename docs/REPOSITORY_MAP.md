@@ -27,7 +27,7 @@ files only; there is no pre-firewall4 ipset branch.
 | `templates/openwrt-30-vpnroute.j2` | Replaces the table `vpn` default route with `tun0`. |
 | `templates/sing-box-json.j2` | Non-destructive starter sing-box configuration. |
 | `templates/config-sing-box.j2` | UCI sing-box service configuration. |
-| `getdomains-install.sh` | OpenWrt 25+ interactive sing-box-only installer using apk. |
+| `getdomains-install.sh` | OpenWrt 25+ interactive sing-box-only installer using apk; installs the diagnostic and uninstall commands into `/usr/bin`. |
 | `getdomains-check.sh` | OpenWrt 25/apk, sing-box, routing, nft set, and dnsmasq diagnostics. |
 | `getdomains-uninstall.sh` | Removes domain-routing artifacts while retaining sing-box. |
 | `README.md`, `README.EN.md` | Russian and English public documentation. |

@@ -2,7 +2,8 @@
 
 set -eu
 
-rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpnroute
+rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpnroute \
+    /usr/bin/getdomains-check /usr/bin/getdomains-uninstall
 sed -i '\|/etc/init.d/getdomains start|d' /etc/crontabs/root
 sed -i '/^[[:space:]]*99[[:space:]]\+vpn$/d' /etc/iproute2/rt_tables
 
