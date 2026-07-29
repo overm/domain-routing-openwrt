@@ -1,4 +1,15 @@
 #!/bin/sh
 
-sleep 10
-ip route replace table vpn default dev tun0
+# Hotplug can run before sing-box has created its TUN device. Wait for a bounded
+# period instead of sleeping unconditionally or installing a broken route.
+attempt=0
+while [ "$attempt" -lt 10 ]; do
+    if ip link show dev tun0 >/dev/null 2>&1; then
+        exec ip route replace table vpn default dev tun0
+    fi
+    attempt=$((attempt + 1))
+    sleep 1
+done
+
+logger -t vpnroute "tun0 did not appear; vpn route was not changed"
+exit 1

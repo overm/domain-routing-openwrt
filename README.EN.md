@@ -43,6 +43,9 @@ list_ip: false
 list_community: false
 dns_encrypt: false              # false, dnscrypt-proxy2, stubby
 nano: true
+getdomains_connect_timeout: 10 # seconds per connection attempt
+getdomains_max_time: 120       # seconds per download attempt
+getdomains_retries: 5
 ```
 
 Example:
@@ -60,6 +63,14 @@ Example:
 The role installs a starter configuration only when
 `/etc/sing-box/config.json` does not exist, so a subsequent Ansible run does not
 overwrite credentials. The inventory must contain an `[openwrt]` group.
+
+List refreshes are transactional: data is downloaded to a temporary file,
+domain syntax is checked by dnsmasq, and the active file is replaced only after
+successful validation. A lock prevents overlapping cron/manual refreshes, the
+previous list remains active after a network or validation failure, and
+services restart only when a list actually changes. The list source URLs can
+also be overridden with `domain_list_urls`, `subnet_list_url`, `ip_list_url`,
+and `community_list_url`.
 
 ## Diagnostics and removal
 

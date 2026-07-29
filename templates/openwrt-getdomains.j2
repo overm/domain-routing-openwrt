@@ -2,60 +2,80 @@
 
 START=99
 
-start () {
-    {% if country == "russia-inside" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst
-    {% endif %}
-    {% if country == "russia-outside" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-nfset.lst
-    {% endif %}
-    {% if country == "ukraine" %}
-    DOMAINS=https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Ukraine/inside-dnsmasq-nfset.lst
-    {% endif %}
-    count=0
-    while true; do
-        if curl -m 3 github.com; then
-            curl -f $DOMAINS --output /tmp/dnsmasq.d/domains.lst
-            break
-        else
-            echo "GitHub is not available. Check the internet availability [$count]"
-            count=$((count+1))
-        fi
-    done
+download() {
+    url=$1
+    destination=$2
+    temporary="${destination}.tmp.$$"
 
-    if dnsmasq --conf-file=/tmp/dnsmasq.d/domains.lst --test 2>&1 | grep -q "syntax check OK"; then
-        /etc/init.d/dnsmasq restart
+    rm -f "$temporary"
+    if ! curl -fL --connect-timeout {{ getdomains_connect_timeout | int }} \
+        --max-time {{ getdomains_max_time | int }} --retry {{ getdomains_retries | int }} \
+        --retry-delay 2 "$url" -o "$temporary"; then
+        rm -f "$temporary"
+        logger -t getdomains "download failed: $url"
+        return 1
     fi
+    [ -s "$temporary" ] || { rm -f "$temporary"; return 1; }
+}
 
-    {% if list_ip or list_community %}
-    echo "Flush sets"
-    nft flush ruleset
-    {% endif %}
+install_download() {
+    destination=$1
+    temporary="${destination}.tmp.$$"
+    if [ -f "$destination" ] && cmp -s "$temporary" "$destination"; then
+        rm -f "$temporary"
+        return 1
+    fi
+    mv -f "$temporary" "$destination"
+}
 
-    {% if list_subnet or list_ip or list_community %}
-    dir=/tmp/lst
-    mkdir -p $dir
+start() {
+    lock=/var/lock/getdomains.lock
+    if ! mkdir "$lock" 2>/dev/null; then
+        logger -t getdomains "refresh is already running"
+        return 0
+    fi
+    cleanup() {
+        rm -rf "$lock"
+        rm -f /tmp/dnsmasq.d/domains.lst.tmp.$$ /tmp/lst/*.tmp.$$
+    }
+    trap cleanup 0
+    trap 'exit 1' HUP INT TERM
 
-    count=0
-    while true; do
-        if curl -m 3 https://antifilter.download/; then
-            {% if list_subnet %}
-            curl -f -z $dir/subnet.lst https://antifilter.download/list/subnet.lst --output $dir/subnet.lst
-            {% endif %}
-            {% if list_ip %}
-            curl -f -z $dir/ip.lst https://antifilter.download/list/ip.lst --output $dir/ip.lst
-            {% endif %}
-            {% if list_community %}
-            curl -f -z $dir/community.lst https://community.antifilter.download/list/community.lst --output $dir/community.lst
-            {% endif %}  
-            break
+    failed=0
+    dnsmasq_changed=0
+    firewall_changed=0
+    mkdir -p /tmp/dnsmasq.d /tmp/lst
+
+{% if list_domains %}
+    domains=/tmp/dnsmasq.d/domains.lst
+    if download '{{ domain_list_urls[country] }}' "$domains"; then
+        if dnsmasq --conf-file="${domains}.tmp.$$" --test >/dev/null 2>&1; then
+            install_download "$domains" && dnsmasq_changed=1
         else
-            echo "antifilter.download is not available. Check the internet availability [$count]"
-            count=$((count+1))
+            rm -f "${domains}.tmp.$$"
+            logger -t getdomains "downloaded domain list failed dnsmasq validation"
+            failed=1
         fi
-    done
+    else
+        failed=1
+    fi
+{% endif %}
+{% for item in [
+    {'enabled': list_subnet, 'url': subnet_list_url, 'file': 'subnet.lst'},
+    {'enabled': list_ip, 'url': ip_list_url, 'file': 'ip.lst'},
+    {'enabled': list_community, 'url': community_list_url, 'file': 'community.lst'}
+] %}
+{% if item.enabled %}
+    destination=/tmp/lst/{{ item.file }}
+    if download '{{ item.url }}' "$destination"; then
+        install_download "$destination" && firewall_changed=1
+    else
+        failed=1
+    fi
+{% endif %}
+{% endfor %}
 
-    echo "Firewall restart"
-    /etc/init.d/firewall restart
-    {% endif %}  
+    [ "$dnsmasq_changed" -eq 0 ] || /etc/init.d/dnsmasq restart
+    [ "$firewall_changed" -eq 0 ] || /etc/init.d/firewall restart
+    return "$failed"
 }

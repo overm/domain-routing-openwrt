@@ -101,9 +101,16 @@ EOF
 grep -q '^99[[:space:]]\+vpn$' /etc/iproute2/rt_tables 2>/dev/null || echo '99 vpn' >> /etc/iproute2/rt_tables
 cat > /etc/hotplug.d/iface/30-vpnroute <<'EOF'
 #!/bin/sh
-[ "$ACTION" = ifup ] || exit 0
-sleep 2
-ip route replace table vpn default dev tun0
+attempt=0
+while [ "$attempt" -lt 10 ]; do
+    if ip link show dev tun0 >/dev/null 2>&1; then
+        exec ip route replace table vpn default dev tun0
+    fi
+    attempt=$((attempt + 1))
+    sleep 1
+done
+logger -t vpnroute "tun0 did not appear; vpn route was not changed"
+exit 1
 EOF
 chmod 0755 /etc/hotplug.d/iface/30-vpnroute
 
@@ -119,10 +126,47 @@ esac
 cat > /etc/init.d/getdomains <<EOF
 #!/bin/sh /etc/rc.common
 START=99
+
+download_domains() {
+    destination=/tmp/dnsmasq.d/domains.lst
+    temporary="\${destination}.tmp.\$\$"
+
+    rm -f "\$temporary"
+    if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 \\
+        --retry-delay 2 '$DOMAINS_URL' -o "\$temporary"; then
+        rm -f "\$temporary"
+        logger -t getdomains "domain list download failed"
+        return 1
+    fi
+    if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
+        rm -f "\$temporary"
+        logger -t getdomains "downloaded domain list failed validation"
+        return 1
+    fi
+    if [ -f "\$destination" ] && cmp -s "\$temporary" "\$destination"; then
+        rm -f "\$temporary"
+        return 2
+    fi
+    mv -f "\$temporary" "\$destination"
+}
+
 start() {
+    lock=/var/lock/getdomains.lock
+    if ! mkdir "\$lock" 2>/dev/null; then
+        logger -t getdomains "refresh is already running"
+        return 0
+    fi
+    cleanup() {
+        rm -rf "\$lock"
+        rm -f /tmp/dnsmasq.d/domains.lst.tmp.\$\$
+    }
+    trap cleanup 0
+    trap 'exit 1' HUP INT TERM
     mkdir -p /tmp/dnsmasq.d
-    curl -fL --retry 5 '$DOMAINS_URL' -o /tmp/dnsmasq.d/domains.lst || return 1
-    dnsmasq --conf-file=/tmp/dnsmasq.d/domains.lst --test || return 1
+    download_domains
+    result=\$?
+    [ "\$result" -eq 2 ] && return 0
+    [ "\$result" -eq 0 ] || return "\$result"
     /etc/init.d/dnsmasq restart
 }
 EOF

@@ -35,12 +35,15 @@ files only; there is no pre-firewall4 ipset branch.
 ## Data flow
 
 1. `apk` installs curl, sing-box, and (when domains are enabled) dnsmasq-full.
-2. `getdomains` downloads dnsmasq nfset and optional IPv4 network lists.
+2. `getdomains` serializes refreshes with a lock, downloads lists to temporary
+   files, validates the domain list, and atomically replaces only valid data.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
    loads the file-backed network sets.
 4. firewall MARK rules apply mark `0x1` to matching LAN traffic.
 5. the network policy rule looks up table `vpn`, and the hotplug script keeps
-   its default route pointed at sing-box's `tun0`.
+   its default route pointed at sing-box's `tun0`. The hotplug script waits for
+   the interface for at most ten seconds and fails without changing the route
+   when the interface never appears.
 
 Runtime paths such as `/etc/init.d/getdomains`, `/tmp/dnsmasq.d`, `/tmp/lst`,
 `/etc/sing-box/config.json`, and UCI files are target-router files and must not
