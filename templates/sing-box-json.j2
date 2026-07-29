@@ -1,28 +1,28 @@
 {
-    "log": {
-      "level": "debug"
-    },
-    "inbounds": [
-      {
-        "type": "tun",
-        "interface_name": "tun0",
-        "domain_strategy": "ipv4_only",
-        "address": ["172.16.250.1/30"],
-        "auto_route": false,
-        "strict_route": false,
-        "sniff": true 
-     }
-    ],
-    "outbounds": [
-      {
-        "type": "$TYPE",
-        "server": "$HOST",
-        "server_port": $PORT,
-        "method": "$METHOD",
-        "password": "$PASS"
-      }
-    ],
-    "route": {
-      "auto_detect_interface": true
+  "log": {
+    "level": "info"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "address": ["172.16.250.1/30"],
+      "auto_route": false,
+      "strict_route": false
     }
+  ],
+  "outbounds": [
+    {
+      "type": "shadowsocks",
+      "tag": "proxy",
+      "server": "CHANGE_ME",
+      "server_port": 443,
+      "method": "2022-blake3-aes-128-gcm",
+      "password": "CHANGE_ME"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true
   }
+}

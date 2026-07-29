@@ -12,10 +12,7 @@ galaxy_info:
   galaxy_tags:
     - openwrt
     - dnsmasq
-    - ipset
-    - wireguard
     - sing-box
-    - openvpn
     - bypass
     - routing
 dependencies:

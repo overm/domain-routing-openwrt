@@ -1,117 +1,72 @@
-Domain routing OpenWrt
-=========
+# Domain routing for OpenWrt 24.10+
 
-Configuring domain routing on Openwrt router.
+This project routes selected domains and IPv4 networks through a **sing-box**
+TUN interface. sing-box is the only supported tunnel implementation. OpenWrt
+23.05 and older are rejected.
 
+## OpenWrt 24.10 notes
 
-Role Variables
---------------
+OpenWrt 24.10 uses firewall4/nftables sets and dnsmasq `nfset` lists. The project
+therefore has no legacy ipset path. The 24.10 release uses **opkg**, not apt.
+OpenWrt development releases introduced **apk** later; the standalone installer
+and package tasks detect either `opkg` or `apk`. See the
+[official 24.10.0 release notes](https://github.com/openwrt/openwrt/releases/tag/v24.10.0).
 
-Lists
-```
-  country: russia-inside|russia-outside|ukraine
-  list_domains: true|falase
+Do not run the installer on a non-OpenWrt host. Upgrade the router using the
+official device-specific instructions before installing this project.
 
-  list_subnet: false|true
-  list_ip: false|true
-  list_community: false|true
-```
+## Standalone installation
 
-Tunnel
-```
-  tunnel: wg|openvpn|singbox|tun2socks
-```
-
-DoH or DoT
-```
-  dns_encrypt: false|dnscrypt|stubby
+```sh
+wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/master/getdomains-install.sh
+sh /tmp/getdomains-install.sh
 ```
 
-Nano package
-```
-  nano: true|false
-```
+The installer installs sing-box and creates a starter
+`/etc/sing-box/config.json`. Replace its outbound placeholders, validate it with
+`sing-box -c /etc/sing-box/config.json check`, then restart sing-box.
 
-Acces from wg network to router
-```
-  wg_access: false|true
-  wg_access_network: 192.168.80.0/24 (for example)
-```
+Diagnostics and removal:
 
-If wireguard is used:
-```
-    wg_server_address: wg-server-host
-    wg_private_key: privatekey-client
-    wg_public_key: publickey-client
-    wg_preshared_key: presharedkey-client
-    wg_client_port: 51820
-    wg_client_address: ip-client
-
-    wg_access: true
-    wg_access_network: wg-network
+```sh
+wget -O - https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/master/getdomains-check.sh | sh
+sh <(wget -O - https://raw.githubusercontent.com/itdoginfo/domain-routing-openwrt/master/getdomains-uninstall.sh)
 ```
 
-Dependencies
-------------
+## Ansible role
 
-[gekmihesg.openwrt](https://github.com/gekmihesg/ansible-openwrt)
+Install `itdoginfo.domain_routing_openwrt`; the inventory must contain an
+`[openwrt]` group. The role depends on `gekmihesg.openwrt`.
 
-
-Example Playbook
-----------------
-
-The inventory file must contain the group `[openwrt]` where your router will be located.
-
-
-Wireguard, only domains, stubby, Russia, acces from wg network, host 192.168.1.1
-```
-- hosts: 192.168.1.1
+```yaml
+- hosts: openwrt
   remote_user: root
-
   roles:
     - itdoginfo.domain_routing_openwrt
-
-  vars:
-    tunnel: wg
-    dns_encrypt: stubby
-    country: russia-inside
-    
-    wg_access: true
-    wg_server_address: wg-server-host
-    wg_private_key: privatekey-client
-    wg_public_key: publickey-client
-    wg_preshared_key: presharedkey-client
-    wg_listen_port: 51820
-    wg_client_port: 51820
-    wg_client_address: ip-client
-    wg_access_network: wg-network
-```
-
-Sing-box, stubby, Russia
-```
-- hosts: 192.168.1.1
-  remote_user: root
-
-  roles:
-    - itdoginfo.domain_routing_openwrt
-
   vars:
     tunnel: singbox
-    dns_encrypt: stubby
     country: russia-inside
-
-  tasks:
-  - name: sing-box config
-    template:
-      src: "templates/openwrt-sing-box-json.j2"
-      dest: "/etc/sing-box/config.json"
-      mode: 0644
-    notify:
-      - Restart sing-box
-      - Restart network
+    list_domains: true
+    list_subnet: false
+    list_ip: false
+    list_community: false
+    dns_encrypt: false       # false, dnscrypt, or stubby
+    nano: true
 ```
 
-License
--------
+Public variables:
 
-GNU General Public License v3.0
+- `tunnel`: only `singbox` is accepted.
+- `country`: `russia-inside`, `russia-outside`, or `ukraine`.
+- `list_domains`, `list_subnet`, `list_ip`, `list_community`: enable individual
+  nftables-backed destination lists.
+- `dns_encrypt`: `false`, `dnscrypt`, or `stubby`.
+- `nano`: install the editor when true.
+
+`dnsmasq-full` is installed automatically when domain lists are enabled. The
+included sing-box JSON is a template and must be configured with real outbound
+connection data.
+
+## License
+
+GNU General Public License v3.0.

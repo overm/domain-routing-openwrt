@@ -2,11 +2,9 @@
 
 SCRIPTS_DIR="/etc/init.d"
 TMP_DIR="/tmp"
-HIVPN_SCRIPT_FILENAME="hivpn"
 GETDOMAINS_SCRIPT_FILENAME="getdomains"
 DUMP_FILENAME="dump.txt"
 
-HIVPN_SCRIPT_PATH="$SCRIPTS_DIR/$HIVPN_SCRIPT_FILENAME"
 GETDOMAINS_SCRIPT_PATH="$SCRIPTS_DIR/$GETDOMAINS_SCRIPT_FILENAME"
 DUMP_PATH="$TMP_DIR/$DUMP_FILENAME"
 
@@ -16,7 +14,6 @@ COLOR_BOLD_RED="\033[31;1m"
 COLOR_BOLD_CYAN="\033[36;1m"
 COLOR_RESET="\033[0m"
 
-UNSUPPORTED_OPENWRT_VERSION="21.02"
 MIN_RAM="256"
 DNSMASQ_FULL_REQUIRED_VERSION="2.87"
 
@@ -25,17 +22,10 @@ SINGBOX_CONFIG_PATH="/etc/config/sing-box"
 CURL_PACKAGE="curl"
 DNSMASQ_PACKAGE="dnsmasq"
 DNSMASQ_FULL_PACKAGE="$DNSMASQ_PACKAGE-full"
-XRAY_CORE_PACKAGE="xray-core"
-LUCI_APP_XRAY_PACKAGE="luci-app-xray"
-WIREGUARD_TOOLS_PACKAGE="wireguard-tools"
-OPENVPN_PACKAGE="openvpn"
 SINGBOX_PACKAGE="sing-box"
-TUN2SOCKS_PACKAGE="tun2socks"
 DNSCRYPT_PACKAGE="dnscrypt-proxy2"
 STUBBY_PACKAGE="stubby"
 
-WIREGUARD_PROTOCOL="Wireguard"
-OPENVPN_PROTOCOL="OpenVPN"
 
 LANGUAGE="ru"
 SUPPORTED_LANGUAGES="ru, en"
@@ -52,36 +42,18 @@ set_language_en() {
   DISABLED="is disabled"
   EXISTS="exists"
   DOESNT_EXIST="doesn't exist"
-  UNSUPPORTED_OPENWRT="You are using OpenWrt $UNSUPPORTED_OPENWRT_VERSION. This check script does not support it."
   RAM_WARNING="Your router has less than $MIN_RAM MB of RAM. It is recommended to use only the vpn_domains list."
   CURL_INSTALLED="$CURL_PACKAGE $INSTALLED"
   CURL_NOT_INSTALLED="$CURL_PACKAGE $NOT_INSTALLED. Install it: opkg install $CURL_PACKAGE"
   DNSMASQ_FULL_INSTALLED="$DNSMASQ_FULL_PACKAGE $INSTALLED"
   DNSMASQ_FULL_NOT_INSTALLED="$DNSMASQ_FULL_PACKAGE $NOT_INSTALLED"
-  DNSMASQ_FULL_DETAILS="If you don't use vpn_domains set, it's OK\nCheck version: opkg list-installed | grep $DNSMASQ_FULL_PACKAGE\nRequired version >= $DNSMASQ_FULL_REQUIRED_VERSION. For OpenWrt 22.03 follow manual: https://t.me/itdoginfo/12"
-  OPENWRT_21_DETAILS="\nYou are using OpenWrt $UNSUPPORTED_OPENWRT_VERSION. This check does not support it.\nManual for OpenWrt $UNSUPPORTED_OPENWRT_VERSION: https://t.me/itdoginfo/8"
-  XRAY_CORE_PACKAGE_DETECTED="$XRAY_CORE_PACKAGE package detected"
-  LUCI_APP_XRAY_PACKAGE_DETECTED="$LUCI_APP_XRAY_PACKAGE package detected which is incompatible. Remove it: opkg remove $LUCI_APP_XRAY_PACKAGE --force-removal-of-dependent-packages"
+  DNSMASQ_FULL_DETAILS="If you don't use vpn_domains set, it's OK\nCheck the installed package with apk info or opkg list-installed\n"
   DNSMASQ_SERVICE_RUNNING="$DNSMASQ_PACKAGE service $RUNNING"
   DNSMASQ_SERVICE_NOT_RUNNING="$DNSMASQ_PACKAGE service $NOT_RUNNING. Check configuration: /etc/config/dhcp"
   INTERNET_IS_AVAILABLE="Internet is available"
   INTERNET_IS_NOT_AVAILABLE="Internet is not available"
   INTERNET_DETAILS="Check internet connection. If it's ok, check date on router. Details: https://cli.co/2EaW4rO\nFor more info run: curl -Is https://community.antifilter.download/"
   IPV6_DETECTED="IPv6 detected. This script does not currently work with IPv6"
-  WIREGUARD_TOOLS_INSTALLED="$WIREGUARD_TOOLS_PACKAGE $INSTALLED"
-  WIREGUARD_ROUTING_DOESNT_WORK="Tunnel to the $WIREGUARD_PROTOCOL server works, but routing to the internet does not work. Check server configuration. Details: https://cli.co/RSCvOxI"
-  WIREGUARD_TUNNEL_NOT_WORKING="Bad news: $WIREGUARD_PROTOCOL tunnel isn't working. Check your $WIREGUARD_PROTOCOL configuration. Details: https://cli.co/hGUUXDs\nIf you don't use $WIREGUARD_PROTOCOL, but $OPENVPN_PROTOCOL for example, it's OK"
-  WIREGUARD_ROUTE_ALLOWED_IPS_ENABLED="$WIREGUARD_PROTOCOL route_allowed_ips $ENABLED. All traffic goes into the tunnel. Read more at: https://cli.co/SaxBzH7"
-  WIREGUARD_ROUTE_ALLOWED_IPS_DISABLED="$WIREGUARD_PROTOCOL route_allowed_ips $DISABLED"
-  WIREGUARD_ROUTING_TABLE_EXISTS="$WIREGUARD_PROTOCOL routing table $EXISTS"
-  WIREGUARD_ROUTING_TABLE_DOESNT_EXIST="$WIREGUARD_PROTOCOL routing table $DOESNT_EXIST. Details: https://cli.co/Atxr6U3"
-  OPENVPN_INSTALLED="$OPENVPN_PACKAGE $INSTALLED"
-  OPENVPN_ROUTING_DOESNT_WORK="Tunnel to the $OPENVPN_PROTOCOL server works, but routing to the internet does not work. Check server configuration."
-  OPENVPN_TUNNEL_NOT_WORKING="Bad news: $OPENVPN_PROTOCOL tunnel isn't working. Check your $OPENVPN_PROTOCOL configuration."
-  OPENVPN_REDIRECT_GATEWAY_ENABLED="$OPENVPN_PROTOCOL redirect-gateway $ENABLED. All traffic goes into the tunnel. Read more at: https://cli.co/vzTNq_3"
-  OPENVPN_REDIRECT_GATEWAY_DISABLED="$OPENVPN_PROTOCOL redirect-gateway $DISABLED"
-  OPENVPN_ROUTING_TABLE_EXISTS="$OPENVPN_PROTOCOL routing table $EXISTS"
-  OPENVPN_ROUTING_TABLE_DOESNT_EXIST="$OPENVPN_PROTOCOL routing table $DOESNT_EXIST. Details: https://cli.co/Atxr6U3"
   SINGBOX_INSTALLED="$SINGBOX_PACKAGE $INSTALLED"
   SINGBOX_ROUTING_TABLE_EXISTS="$SINGBOX_PACKAGE routing table $EXISTS"
   SINGBOX_ROUTING_TABLE_DOESNT_EXIST="$SINGBOX_PACKAGE routing table $DOESNT_EXIST. Try: service network restart. Details: https://cli.co/n7xAbc1"
@@ -91,11 +63,6 @@ set_language_en() {
   SINGBOX_CONFIG_ERROR="$SINGBOX_PACKAGE configuration validation error"
   SINGBOX_WORKING_TEMPLATE="$SINGBOX_PACKAGE works. VPN IP: %s"
   SINGBOX_ROUTING_DOESNT_WORK="$SINGBOX_PACKAGE: Your traffic is not routed through the VPN. Check configuration: https://cli.co/Badmn3K"
-  TUN2SOCKS_INSTALLED="$TUN2SOCKS_PACKAGE $INSTALLED"
-  TUN2SOCKS_ROUTING_TABLE_EXISTS="$TUN2SOCKS_PACKAGE routing table $EXISTS"
-  TUN2SOCKS_ROUTING_TABLE_DOESNT_EXIST="$TUN2SOCKS_PACKAGE routing table $DOESNT_EXIST. Try: service network restart. Details: https://cli.co/n7xAbc1"
-  TUN2SOCKS_WORKING_TEMPLATE="$TUN2SOCKS_PACKAGE works. VPN IP: %s"
-  TUN2SOCKS_ROUTING_DOESNT_WORK="$TUN2SOCKS_PACKAGE: Your traffic is not routed through the VPN. Check configuration: https://cli.co/VNZISEM"
   VPN_DOMAINS_SET_EXISTS="vpn_domains set $EXISTS"
   VPN_DOMAINS_SET_DOESNT_EXIST="vpn_domains set $DOESNT_EXIST"
   IPS_IN_VPN_DOMAINS_SET_OK="IPs are successfully added to vpn_domains set"
@@ -155,36 +122,18 @@ set_language_ru() {
   DISABLED="выключен"
   EXISTS="существует"
   DOESNT_EXIST="не существует"
-  UNSUPPORTED_OPENWRT="Вы используете OpenWrt $UNSUPPORTED_OPENWRT_VERSION. Этот скрипт проверки её не поддерживает."
   RAM_WARNING="У вашего роутера менее $MIN_RAM МБ ОЗУ. Рекомендуется использовать только vpn_domains set."
   CURL_INSTALLED="$CURL_PACKAGE $INSTALLED"
   CURL_NOT_INSTALLED="$CURL_PACKAGE $NOT_INSTALLED. Установите его: opkg install $CURL_PACKAGE"
   DNSMASQ_FULL_INSTALLED="$DNSMASQ_FULL_PACKAGE $INSTALLED"
   DNSMASQ_FULL_NOT_INSTALLED="$DNSMASQ_FULL_PACKAGE $NOT_INSTALLED"
-  DNSMASQ_FULL_DETAILS="Если вы не используете vpn_domains set, это нормально\nПроверьте версию: opkg list-installed | grep $DNSMASQ_FULL_PACKAGE\nТребуемая версия >= $DNSMASQ_FULL_REQUIRED_VERSION. Для OpenWrt 22.03 следуйте инструкции: https://t.me/itdoginfo/12"
-  OPENWRT_21_DETAILS="\nВы используете OpenWrt $UNSUPPORTED_OPENWRT_VERSION. Этот скрипт её не поддерживает.\nИнструкция для OpenWrt $UNSUPPORTED_OPENWRT_VERSION: https://t.me/itdoginfo/8"
-  XRAY_CORE_PACKAGE_DETECTED="Обнаружен пакет $XRAY_CORE_PACKAGE"
-  LUCI_APP_XRAY_PACKAGE_DETECTED="Обнаружен пакет $LUCI_APP_XRAY_PACKAGE, который не совместим. Удалите его: opkg remove $LUCI_APP_XRAY_PACKAGE --force-removal-of-dependent-packages"
+  DNSMASQ_FULL_DETAILS="Если вы не используете vpn_domains set, это нормально\nПроверьте установленный пакет через apk info или opkg list-installed\n"
   DNSMASQ_SERVICE_RUNNING="Сервис $DNSMASQ_PACKAGE $RUNNING"
   DNSMASQ_SERVICE_NOT_RUNNING="Сервис $DNSMASQ_PACKAGE $NOT_RUNNING. Проверьте конфигурацию: /etc/config/dhcp"
   INTERNET_IS_AVAILABLE="Интернет доступен"
   INTERNET_IS_NOT_AVAILABLE="Интернет недоступен"
   INTERNET_DETAILS="Проверьте подключение к интернету. Если оно в порядке, проверьте дату на роутере. Подробности: https://cli.co/2EaW4rO\nДополнительно выполните: curl -Is https://community.antifilter.download/"
   IPV6_DETECTED="Обнаружен IPv6. Этот скрипт не поддерживает работу с IPv6"
-  WIREGUARD_TOOLS_INSTALLED="$WIREGUARD_TOOLS_PACKAGE $INSTALLED"
-  WIREGUARD_ROUTING_DOESNT_WORK="Туннель к $WIREGUARD_PROTOCOL серверу работает, но маршрутизация в интернет не работает. Проверьте конфигурацию сервера. Подробности: https://cli.co/RSCvOxI"
-  WIREGUARD_TUNNEL_NOT_WORKING="Плохие новости: туннель $WIREGUARD_PROTOCOL не работает. Проверьте конфигурацию $WIREGUARD_PROTOCOL. Подробности: https://cli.co/hGUUXDs\nЕсли вы не используете $WIREGUARD_PROTOCOL, а, например, $OPENVPN_PROTOCOL, то это нормально"
-  WIREGUARD_ROUTE_ALLOWED_IPS_ENABLED="$WIREGUARD_PROTOCOL route_allowed_ips $ENABLED. Весь трафик идет в туннель. Подробнее: https://cli.co/SaxBzH7"
-  WIREGUARD_ROUTE_ALLOWED_IPS_DISABLED="$WIREGUARD_PROTOCOL route_allowed_ips $DISABLED"
-  WIREGUARD_ROUTING_TABLE_EXISTS="Таблица маршрутизации $WIREGUARD_PROTOCOL $EXISTS"
-  WIREGUARD_ROUTING_TABLE_DOESNT_EXIST="Таблица маршрутизации $WIREGUARD_PROTOCOL $DOESNT_EXIST. Подробности: https://cli.co/Atxr6U3"
-  OPENVPN_INSTALLED="$OPENVPN_PACKAGE $INSTALLED"
-  OPENVPN_ROUTING_DOESNT_WORK="Туннель к $OPENVPN_PROTOCOL серверу работает, но маршрутизация в интернет не работает. Проверьте конфигурацию сервера."
-  OPENVPN_TUNNEL_NOT_WORKING="Плохие новости: туннель $OPENVPN_PROTOCOL не работает. Проверьте конфигурацию $OPENVPN_PROTOCOL."
-  OPENVPN_REDIRECT_GATEWAY_ENABLED="$OPENVPN_PROTOCOL redirect-gateway $ENABLED. Весь трафик идет в туннель. Подробнее: https://cli.co/vzTNq_3"
-  OPENVPN_REDIRECT_GATEWAY_DISABLED="$OPENVPN_PROTOCOL redirect-gateway $DISABLED"
-  OPENVPN_ROUTING_TABLE_EXISTS="Таблица маршрутизации $OPENVPN_PROTOCOL $EXISTS"
-  OPENVPN_ROUTING_TABLE_DOESNT_EXIST="Таблица маршрутизации $OPENVPN_PROTOCOL $DOESNT_EXIST. Подробности: https://cli.co/Atxr6U3"
   SINGBOX_INSTALLED="$SINGBOX_PACKAGE $INSTALLED"
   SINGBOX_ROUTING_TABLE_EXISTS="Таблица маршрутизации $SINGBOX_PACKAGE $EXISTS"
   SINGBOX_ROUTING_TABLE_DOESNT_EXIST="Таблица маршрутизации $SINGBOX_PACKAGE $DOESNT_EXIST. Попробуйте: service network restart. Подробности: https://cli.co/n7xAbc1"
@@ -194,11 +143,6 @@ set_language_ru() {
   SINGBOX_CONFIG_ERROR="Ошибка валидации конфигурации $SINGBOX_PACKAGE"
   SINGBOX_WORKING_TEMPLATE="$SINGBOX_PACKAGE работает. VPN IP: %s"
   SINGBOX_ROUTING_DOESNT_WORK="$SINGBOX_PACKAGE: Ваш трафик не идёт через VPN. Проверьте конфигурацию: https://cli.co/Badmn3K"
-  TUN2SOCKS_INSTALLED="$TUN2SOCKS_PACKAGE $INSTALLED"
-  TUN2SOCKS_ROUTING_TABLE_EXISTS="Таблица маршрутизации $TUN2SOCKS_PROTOCOL $EXISTS"
-  TUN2SOCKS_ROUTING_TABLE_DOESNT_EXIST="Таблица маршрутизации $TUN2SOCKS_PROTOCOL $DOESNT_EXIST. Подробности: https://cli.co/n7xAbc1"
-  TUN2SOCKS_WORKING_TEMPLATE="$TUN2SOCKS_PACKAGE работает. VPN IP: %s"
-  TUN2SOCKS_ROUTING_DOESNT_WORK="$TUN2SOCKS_PACKAGE: Ваш трафик не идёт через VPN. Проверьте конфигурацию: https://cli.co/VNZISEM"
   VPN_DOMAINS_SET_EXISTS="vpn_domains set $EXISTS"
   VPN_DOMAINS_SET_DOESNT_EXIST="vpn_domains set $DOESNT_EXIST"
   IPS_IN_VPN_DOMAINS_SET_OK="IP-адреса успешно добавлены в vpn_domains set"
@@ -254,11 +198,6 @@ checkpoint_false() {
   printf "$COLOR_BOLD_RED[x] $1$COLOR_RESET\n"
 }
 
-output_21() {
-  if [ "$VERSION_ID" -eq 21 ]; then
-    echo "$UNSUPPORTED_OPENWRT"
-  fi
-}
 
 update_vpn_ip() {
   local template="$1"
@@ -298,43 +237,35 @@ esac
 
 # System Details
 MODEL=$(cat /tmp/sysinfo/model)
-source /etc/os-release
+. /etc/os-release
 printf "$COLOR_BOLD_BLUE$DEVICE_MODEL: $MODEL$COLOR_RESET\n"
 printf "$COLOR_BOLD_BLUE$OPENWRT_VERSION: $OPENWRT_RELEASE$COLOR_RESET\n"
 printf "$COLOR_BOLD_BLUE$CURRENT_DATE: $(date)$COLOR_RESET\n"
 
 VERSION_ID=$(echo $VERSION | awk -F. '{print $1}')
+if [ "$VERSION_ID" -lt 24 ]; then
+  checkpoint_false "OpenWrt 24.10 or newer is required"
+  exit 1
+fi
 RAM=$(free -m | grep Mem: | awk '{print $2}')
-if [[ "$VERSION_ID" -ge 22 && "$RAM" -lt 150000 ]]; then
+if [ "$VERSION_ID" -ge 24 ] && [ "$RAM" -lt 256 ]; then
   echo "$RAM_WARNING"
 fi
 
 # Check packages
-CURL=$(opkg list-installed | grep -c curl)
-if [ $CURL -eq 2 ]; then
+CURL=0; package_installed curl && CURL=1
+if [ "$CURL" -eq 1 ]; then
   checkpoint_true "$CURL_INSTALLED"
 else
   checkpoint_false "$CURL_NOT_INSTALLED"
 fi
 
-DNSMASQ=$(opkg list-installed | grep dnsmasq-full | awk -F "-" '{print $3}' | tr -d '.')
-if [ $DNSMASQ -ge 287 ]; then
+DNSMASQ=0; package_installed dnsmasq-full && DNSMASQ=1
+if [ "$DNSMASQ" -eq 1 ]; then
   checkpoint_true "$DNSMASQ_FULL_INSTALLED"
 else
   checkpoint_false "$DNSMASQ_FULL_NOT_INSTALLED"
   printf "$DNSMASQ_FULL_DETAILS\n"
-  if [ "$VERSION_ID" -eq 21 ]; then
-    printf "$OPENWRT_21_DETAILS\n"
-  fi
-fi
-
-# Chek xray package
-if opkg list-installed | grep -q xray-core; then
-  checkpoint_false "$XRAY_CORE_PACKAGE_DETECTED"
-fi
-
-if opkg list-installed | grep -q luci-app-xray; then
-  checkpoint_false "$LUCI_APP_XRAY_PACKAGE_DETECTED"
 fi
 
 # Check dnsmasq
@@ -343,7 +274,6 @@ if [ $DNSMASQ_RUN -eq 1 ]; then
   checkpoint_true "$DNSMASQ_SERVICE_RUNNING"
 else
   checkpoint_false "$DNSMASQ_SERVICE_NOT_RUNNING"
-  output_21
 fi
 
 # Check internet connection
@@ -364,77 +294,8 @@ if curl -6 -s https://ifconfig.io | egrep -q "(::)?[0-9a-fA-F]{1,4}(::?[0-9a-fA-
   checkpoint_false "$IPV6_DETECTED"
 fi
 
-# Tunnels
-WIREGUARD=$(opkg list-installed | grep -c wireguard-tools)
-if [ $WIREGUARD -eq 1 ]; then
-  checkpoint_true "$WIREGUARD_TOOLS_INSTALLED"
-  WG=true
-fi
-
-if [ "$WG" == true ]; then
-  WG_PING=$(ping -c 1 -q -I wg0 itdog.info | grep -c "1 packets received")
-  if [ $WG_PING -eq 1 ]; then
-    checkpoint_true "$WIREGUARD_PROTOCOL"
-  else
-    checkpoint_false "$WIREGUARD_PROTOCOL"
-    WG_TRACE=$(traceroute -i wg0 itdog.info -m 1 | grep ms | awk '{print $2}' | grep -c -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
-    if [ $WG_TRACE -eq 1 ]; then
-      echo "$WIREGUARD_ROUTING_DOESNT_WORK"
-    else
-      printf "$WIREGUARD_TUNNEL_NOT_WORKING\n"
-    fi
-  fi
-
-  # Check WG route_allowed_ips
-  if uci show network | grep -q ".route_allowed_ips='1'"; then
-    checkpoint_false "$WIREGUARD_ROUTE_ALLOWED_IPS_ENABLED"
-  else
-    checkpoint_true "$WIREGUARD_ROUTE_ALLOWED_IPS_DISABLED"
-  fi
-
-  # Check route table
-  ROUTE_TABLE=$(ip route show table vpn | grep -c "default dev wg0")
-  if [ $ROUTE_TABLE -eq 1 ]; then
-    checkpoint_true "$WIREGUARD_ROUTING_TABLE_EXISTS"
-  else
-    checkpoint_false "$WIREGUARD_ROUTING_TABLE_DOESNT_EXIST"
-  fi
-fi
-
-if opkg list-installed | grep -q openvpn; then
-  checkpoint_true "$OPENVPN_INSTALLED"
-  OVPN=true
-fi
-
-# Check OpenVPN
-if [ "$OVPN" == true ]; then
-  if ping -c 1 -q -I tun0 itdog.info | grep -q "1 packets received"; then
-    checkpoint_true "$OPENVPN_PROTOCOL"
-  else
-    checkpoint_false "$OPENVPN_PROTOCOL"
-    if traceroute -i tun0 itdog.info -m 1 | grep ms | awk '{print $2}' | grep -c -E '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}'; then
-      echo "$OPENVPN_ROUTING_DOESNT_WORK"
-    else
-      echo "$OPENVPN_TUNNEL_NOT_WORKING"
-    fi
-  fi
-
-  # Check OpenVPN redirect-gateway
-  if grep -q redirect-gateway /etc/openvpn/*; then
-    checkpoint_false "$OPENVPN_REDIRECT_GATEWAY_ENABLED"
-  else
-    checkpoint_true "$OPENVPN_REDIRECT_GATEWAY_DISABLED"
-  fi
-
-  # Check route table
-  if ip route show table vpn | grep -q "default dev tun0"; then
-    checkpoint_true "$OPENVPN_ROUTING_TABLE_EXISTS"
-  else
-    checkpoint_false "$OPENVPN_ROUTING_TABLE_DOESNT_EXIST"
-  fi
-fi
-
-if opkg list-installed | grep -q sing-box; then
+# Check sing-box tunnel
+if package_installed sing-box; then
   checkpoint_true "$SINGBOX_INSTALLED"
 
   # Check route table
@@ -474,30 +335,6 @@ if opkg list-installed | grep -q sing-box; then
   fi
 fi
 
-if which tun2socks | grep -q tun2socks; then
-  checkpoint_true "$TUN2SOCKS_INSTALLED"
-
-  # Check route table
-  if ip route show table vpn | grep -q "default dev tun0"; then
-    checkpoint_true "$TUN2SOCKS_ROUTING_TABLE_EXISTS"
-  else
-    checkpoint_false "$TUN2SOCKS_ROUTING_TABLE_DOESNT_EXIST"
-  fi
-
-  IP_EXTERNAL=$(curl -s ifconfig.me)
-  IFCONFIG=$(nslookup -type=a ifconfig.me | awk '/^Address: / {print $2}')
-
-  IP_VPN=$(curl --interface tun0 -s ifconfig.me)
-
-  TUN2SOCKS_WORKING=$(update_vpn_ip "$TUN2SOCKS_WORKING_TEMPLATE" "$IP_VPN")
-
-  if [ "$IP_EXTERNAL" != $IP_VPN ]; then
-    checkpoint_true "$TUN2SOCKS_WORKING"
-  else
-    checkpoint_false "$TUN2SOCKS_ROUTING_DOESNT_WORK"
-  fi
-fi
-
 # Check sets
 
 # vpn_domains set
@@ -520,8 +357,7 @@ if [ $((vpn_domain_ipset_string + vpn_domain_rule_string)) -eq 10 ]; then
   else
     checkpoint_false "$IPS_IN_VPN_DOMAINS_SET_ERROR"
     printf "$VPN_DOMAINS_DETAILS\n"
-    output_21
-  fi
+    fi
 else
   checkpoint_false "$VPN_DOMAINS_SET_DOESNT_EXIST"
   printf "$VPN_DOMAINS_DETAILS_2\n"
@@ -540,8 +376,7 @@ if [ $((vpn_ip_ipset_string + vpn_ip_rule_string)) -eq 11 ]; then
     checkpoint_true "$IPS_IN_VPN_IP_SET_OK"
   else
     checkpoint_false "$IPS_IN_VPN_IP_SET_ERROR"
-    output_21
-  fi
+    fi
 elif uci show firewall | grep -q "vpn_ip"; then
   checkpoint_false "$VPN_IP_SET_DOESNT_EXIST"
 fi
@@ -559,8 +394,7 @@ if [ $((vpn_subnet_ipset_string + vpn_subnet_rule_string)) -eq 11 ]; then
     checkpoint_true "$IPS_IN_VPN_SUBNET_SET_OK"
   else
     checkpoint_false "$IPS_IN_VPN_SUBNET_SET_ERROR"
-    output_21
-  fi
+    fi
 elif uci show firewall | grep -q "vpn_subnet"; then
   checkpoint_false "$VPN_SUBNET_SET_DOESNT_EXIST"
 fi
@@ -578,8 +412,7 @@ if [ $((vpn_community_ipset_string + vpn_community_rule_string)) -eq 11 ]; then
     checkpoint_true "$IPS_IN_VPN_COMMUNITY_SET_OK"
   else
     checkpoint_false "$IPS_IN_VPN_COMMUNITY_SET_ERROR"
-    output_21
-  fi
+    fi
 elif uci show firewall | grep -q "vpn_community"; then
   checkpoint_false "$VPN_COMMUNITY_SET_DOESNT_EXIST"
 fi
@@ -599,14 +432,13 @@ fi
 # DNS
 
 # DNSCrypt
-if opkg list-installed | grep -q dnscrypt-proxy2; then
+if package_installed dnscrypt-proxy2; then
   checkpoint_true "$DNSCRYPT_INSTALLED"
   if service dnscrypt-proxy status | grep -q 'running'; then
     checkpoint_true "$DNSCRYPT_SERVICE_RUNNING"
   else
     checkpoint_false "$DNSCRYPT_SERVICE_NOT_RUNNING"
-    output_21
-  fi
+    fi
 
   DNSMASQ_STRING=$(uci show dhcp.@dnsmasq[0] | grep -c "127.0.0.53#53\|noresolv='1'")
   if [ $DNSMASQ_STRING -eq 2 ]; then
@@ -617,14 +449,13 @@ if opkg list-installed | grep -q dnscrypt-proxy2; then
 fi
 
 # Stubby
-if opkg list-installed | grep -q stubby; then
+if package_installed stubby; then
   checkpoint_true "$STUBBY_INSTALLED"
   if service stubby status | grep -q 'running'; then
     checkpoint_true "$STUBBY_SERVICE_RUNNING"
   else
     checkpoint_false "$STUBBY_SERVICE_NOT_RUNNING"
-    output_21
-  fi
+    fi
 
   STUBBY_STRING=$(uci show dhcp.@dnsmasq[0] | grep -c "127.0.0.1#5453\|noresolv='1'")
   if [ $STUBBY_STRING -eq 2 ]; then
@@ -639,7 +470,6 @@ case $COMMAND in
     # Create dump
     printf "\n$COLOR_BOLD_CYAN$DUMP_CREATION$COLOR_RESET\n"
     date >$DUMP_PATH
-    $HIVPN start >>$DUMP_PATH 2>&1
     $GETDOMAINS_SCRIPT_PATH start >>$DUMP_PATH 2>&1
     uci show firewall >>$DUMP_PATH
     uci show network | sed -r 's/(.*private_key=|.*preshared_key=|.*public_key=|.*endpoint_host=|.*wan.ipaddr=|.*wan.netmask=|.*wan.gateway=|.*wan.dns|.*.macaddr=).*/\1REMOVED/' >>$DUMP_PATH
