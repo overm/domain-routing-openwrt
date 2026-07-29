@@ -198,7 +198,7 @@ grep -q '/etc/init.d/getdomains start' /etc/crontabs/root 2>/dev/null || echo '0
 /etc/init.d/getdomains start
 
 printf 'Edit /etc/sing-box/config.json in nano now? [y/N]: '
-read -r EDIT_SINGBOX
+read -r EDIT_SINGBOX || EDIT_SINGBOX=n
 case ${EDIT_SINGBOX:-n} in
     y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
 esac
