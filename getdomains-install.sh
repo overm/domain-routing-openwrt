@@ -200,15 +200,34 @@ case ${EDIT_SINGBOX:-n} in
     y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
 esac
 
-SINGBOX_READY=0
+SINGBOX_STARTED=0
 if sing-box check -c /etc/sing-box/config.json; then
-    /etc/init.d/sing-box restart
-    SINGBOX_READY=1
+    if /etc/init.d/sing-box restart; then
+        SINGBOX_STARTED=1
+    else
+        red "sing-box failed to start; skipping the initial domain-list download."
+    fi
 else
     red "sing-box configuration is not valid; skipping the initial domain-list download."
 fi
 /etc/init.d/firewall restart
 /etc/init.d/network restart
+
+SINGBOX_READY=0
+if [ "$SINGBOX_STARTED" -eq 1 ]; then
+    attempt=0
+    while [ "$attempt" -lt 10 ]; do
+        if ip link show dev tun0 >/dev/null 2>&1; then
+            SINGBOX_READY=1
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    if [ "$SINGBOX_READY" -eq 0 ]; then
+        red "sing-box started but tun0 did not appear; skipping the initial domain-list download."
+    fi
+fi
 if [ "$SINGBOX_READY" -eq 1 ] && ! /etc/init.d/getdomains start; then
     red "The initial domain-list download through tun0 failed; run /etc/init.d/getdomains start after the tunnel is available."
 fi
