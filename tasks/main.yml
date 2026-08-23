@@ -23,6 +23,7 @@
       - getdomains_connect_timeout | int > 0
       - getdomains_max_time | int > 0
       - getdomains_retries | int >= 0
+      - getdomains_download_interface is match('^[A-Za-z0-9_.:-]+$')
     fail_msg: "Invalid country or getdomains download settings."
 
 - name: Refresh apk indexes
