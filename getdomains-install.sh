@@ -150,10 +150,10 @@ download_domains() {
     temporary="\${destination}.tmp.\$\$"
 
     rm -f "\$temporary"
-    if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 \\
+    if ! curl -fL --interface tun0 --connect-timeout 10 --max-time 120 --retry 5 \\
         --retry-delay 2 '$DOMAINS_URL' -o "\$temporary"; then
         rm -f "\$temporary"
-        logger -t getdomains "domain list download failed"
+        logger -t getdomains "domain list download through tun0 failed"
         return 1
     fi
     if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
@@ -193,14 +193,43 @@ chmod 0755 /etc/init.d/getdomains
 grep -q '/etc/init.d/getdomains start' /etc/crontabs/root 2>/dev/null || echo '0 4 * * * /etc/init.d/getdomains start' >> /etc/crontabs/root
 /etc/init.d/cron enable
 /etc/init.d/cron restart
-/etc/init.d/firewall restart
-/etc/init.d/network restart
-/etc/init.d/getdomains start
 
 printf 'Edit /etc/sing-box/config.json in nano now? [y/N]: '
 read -r EDIT_SINGBOX || EDIT_SINGBOX=n
 case ${EDIT_SINGBOX:-n} in
     y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
 esac
+
+SINGBOX_STARTED=0
+if sing-box check -c /etc/sing-box/config.json; then
+    if /etc/init.d/sing-box restart; then
+        SINGBOX_STARTED=1
+    else
+        red "sing-box failed to start; skipping the initial domain-list download."
+    fi
+else
+    red "sing-box configuration is not valid; skipping the initial domain-list download."
+fi
+/etc/init.d/firewall restart
+/etc/init.d/network restart
+
+SINGBOX_READY=0
+if [ "$SINGBOX_STARTED" -eq 1 ]; then
+    attempt=0
+    while [ "$attempt" -lt 10 ]; do
+        if ip link show dev tun0 >/dev/null 2>&1; then
+            SINGBOX_READY=1
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    if [ "$SINGBOX_READY" -eq 0 ]; then
+        red "sing-box started but tun0 did not appear; skipping the initial domain-list download."
+    fi
+fi
+if [ "$SINGBOX_READY" -eq 1 ] && ! /etc/init.d/getdomains start; then
+    red "The initial domain-list download through tun0 failed; run /etc/init.d/getdomains start after the tunnel is available."
+fi
 
 green "Done. Validate /etc/sing-box/config.json, then run: service sing-box restart"

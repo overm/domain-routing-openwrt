@@ -8,7 +8,8 @@ download() {
     temporary="${destination}.tmp.$$"
 
     rm -f "$temporary"
-    if ! curl -fL --connect-timeout {{ getdomains_connect_timeout | int }} \
+    if ! curl -fL --interface '{{ getdomains_download_interface }}' \
+        --connect-timeout {{ getdomains_connect_timeout | int }} \
         --max-time {{ getdomains_max_time | int }} --retry {{ getdomains_retries | int }} \
         --retry-delay 2 "$url" -o "$temporary"; then
         rm -f "$temporary"
