@@ -132,7 +132,12 @@ exit 1
 EOF
 chmod 0755 /etc/hotplug.d/iface/30-vpnroute
 
-printf 'Select the domain list: 1) Russia inside 2) Russia outside 3) Ukraine [1]: '
+printf '%s\n' \
+    'Select the domain list:' \
+    '1) Russia inside' \
+    '2) Russia outside' \
+    '3) Ukraine'
+printf 'Selection [1]: '
 read -r COUNTRY
 case ${COUNTRY:-1} in
     1) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst' ;;
