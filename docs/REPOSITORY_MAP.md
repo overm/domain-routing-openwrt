@@ -28,7 +28,7 @@ files only; there is no pre-firewall4 ipset branch.
 | `templates/sing-box-json.j2` | Non-destructive starter sing-box configuration. |
 | `templates/config-sing-box.j2` | UCI sing-box service configuration. |
 | `getdomains-install.sh` | OpenWrt 25+ interactive sing-box-only installer using apk; installs the diagnostic and uninstall commands into `/usr/bin`. |
-| `getdomains-check.sh` | OpenWrt 25/apk, sing-box, routing, nft set, and dnsmasq diagnostics. |
+| `getdomains-check.sh` | OpenWrt 25/apk, sing-box TUN loop protection, netifd, routing, firewall, nft set, and dnsmasq diagnostics. |
 | `getdomains-uninstall.sh` | Removes domain-routing artifacts while retaining sing-box. |
 | `README.md`, `README.EN.md` | Russian and English public documentation. |
 
@@ -43,10 +43,15 @@ files only; there is no pre-firewall4 ipset branch.
    files, validates the domain list, and atomically replaces only valid data.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
    loads the file-backed network sets.
-4. firewall MARK rules apply mark `0x1` to matching LAN traffic.
-5. the network policy rules send marked LAN packets and router-local downloads
-   bound to `tun0` to table `vpn`, and the hotplug script keeps its default route
-   pointed at sing-box's `tun0`. The hotplug script waits for
+4. The raw `tun0` device is registered as the unmanaged netifd interface
+   `singbox_tun`. The firewall accepts replies from this internal TUN device to
+   router-local sockets, while new forwarding from the TUN zone remains rejected.
+5. firewall MARK rules apply mark `0x1` to matching LAN traffic.
+6. the network policy rules send marked LAN packets and router-local downloads
+   bound to `tun0` to table `vpn`. The output-interface rule refers to the
+   logical `singbox_tun` interface so netifd can resolve it to the `tun0` device,
+   and the hotplug script keeps the table's default route pointed at `tun0`.
+   The hotplug script waits for
    the interface for at most ten seconds and fails without changing the route
    when the interface never appears.
 

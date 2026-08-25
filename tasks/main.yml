@@ -91,6 +91,19 @@
     - Restart network
     - Install vpn route
 
+- name: Register the sing-box TUN device with netifd
+  uci:
+    command: section
+    config: network
+    type: interface
+    name: singbox_tun
+    value:
+      proto: none
+      device: tun0
+  notify:
+    - Restart network
+    - Install vpn route
+
 - name: Configure sing-box firewall zone
   uci:
     command: section
@@ -102,7 +115,7 @@
       forward: REJECT
       output: ACCEPT
       name: tun
-      input: REJECT
+      input: ACCEPT
       masq: 1
       mtu_fix: 1
       device: tun0
@@ -160,7 +173,7 @@
     find_by:
       name: tun0_download
     value:
-      out: tun0
+      out: singbox_tun
       priority: 90
       lookup: vpn
   when: getdomains_download_interface == 'tun0'

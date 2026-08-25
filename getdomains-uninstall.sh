@@ -7,7 +7,7 @@ rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpn
 sed -i '\|/etc/init.d/getdomains start|d' /etc/crontabs/root
 sed -i '/^[[:space:]]*99[[:space:]]\+vpn$/d' /etc/iproute2/rt_tables
 
-for section in mark0x1 tun0_download; do uci -q delete "network.$section" || true; done
+for section in mark0x1 tun0_download singbox_tun; do uci -q delete "network.$section" || true; done
 for section in singbox lan_singbox vpn_domains vpn_subnets vpn_ip vpn_community mark_domains mark_subnet mark_ip mark_community; do
     uci -q delete "firewall.$section" || true
 done
