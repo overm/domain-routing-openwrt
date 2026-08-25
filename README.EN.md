@@ -15,10 +15,10 @@ been removed.
 The launch command installs `curl`, which is required to download the script.
 The standalone installer checks the OpenWrt major version and the presence of
 `apk` and `curl` before changing the device. It installs `sing-box`,
-`dnsmasq-full`, and `nano`, saves the diagnostics and removal commands in
-`/usr/bin`, creates the `tun0` firewall/routing configuration, and preserves an
-existing `/etc/sing-box/config.json`. At the end of installation, the script
-offers to open that configuration in `nano` immediately.
+`dnsmasq-full`, `ip-full`, and `nano`, saves the diagnostics and removal
+commands in `/usr/bin`, creates the `tun0` firewall/routing configuration, and
+preserves an existing `/etc/sing-box/config.json`. At the end of installation,
+the script offers to open that configuration in `nano` immediately.
 
 ```sh
 apk update && apk add curl

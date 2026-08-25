@@ -32,7 +32,7 @@ MAJOR=${VERSION_ID%%.*}
 [ "$MAJOR" -ge 25 ] && ok "OpenWrt $VERSION_ID" || fail "$UNSUPPORTED: $VERSION_ID"
 command -v apk >/dev/null 2>&1 && ok "apk" || fail "$MISSING_APK"
 
-for package in curl dnsmasq-full sing-box; do
+for package in curl dnsmasq-full ip-full sing-box; do
     if apk info -e "$package" >/dev/null 2>&1; then
         ok "$package"
     else
