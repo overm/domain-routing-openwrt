@@ -78,7 +78,10 @@ services restart only when a list actually changes. The list source URLs can
 also be overridden with `domain_list_urls`, `subnet_list_url`, `ip_list_url`,
 and `community_list_url`.
 Downloads use `getdomains_download_interface` (`tun0` by default). Before each
-download, the script waits up to `getdomains_ready_timeout` seconds for the
+download, a separate policy rule sends the router-local `curl` socket bound to
+`tun0` through the `vpn` table; a default route that exists only in that table
+does not select the table on its own. The script waits up to
+`getdomains_ready_timeout` seconds for the
 interface and source-hostname resolution, so a brief DNS interruption while
 network settings are applied does not cause an immediate failure. The list
 source does not need to be reachable directly over WAN. Configure and start

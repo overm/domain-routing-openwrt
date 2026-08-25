@@ -17,12 +17,14 @@ if [ "$LANGUAGE" = en ]; then
     MISSING_PACKAGE="package is not installed"
     BAD_CONFIG="sing-box configuration is invalid"
     BAD_ROUTE="vpn table has no default route through tun0"
+    BAD_DOWNLOAD_RULE="locally bound tun0 traffic does not use the vpn table"
 else
     UNSUPPORTED="Требуется OpenWrt 25 или новее"
     MISSING_APK="apk не найден (OpenWrt 25+ использует apk, не apt и не opkg)"
     MISSING_PACKAGE="пакет не установлен"
     BAD_CONFIG="конфигурация sing-box некорректна"
     BAD_ROUTE="в таблице vpn нет маршрута по умолчанию через tun0"
+    BAD_DOWNLOAD_RULE="локальный трафик, привязанный к tun0, не направляется в таблицу vpn"
 fi
 
 . /etc/os-release
@@ -46,6 +48,7 @@ fi
 
 if service sing-box status 2>/dev/null | grep -q running; then ok "sing-box service"; else fail "sing-box service"; fi
 if ip route show table vpn 2>/dev/null | grep -q '^default dev tun0'; then ok "vpn route"; else fail "$BAD_ROUTE"; fi
+if ip rule show 2>/dev/null | grep -q 'oif tun0.*lookup vpn'; then ok "tun0 download rule"; else fail "$BAD_DOWNLOAD_RULE"; fi
 if nft list set inet fw4 vpn_domains >/dev/null 2>&1; then ok "vpn_domains nft set"; else fail "vpn_domains nft set"; fi
 if service dnsmasq status 2>/dev/null | grep -q running; then ok "dnsmasq service"; else fail "dnsmasq service"; fi
 

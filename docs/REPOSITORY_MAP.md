@@ -41,8 +41,9 @@ files only; there is no pre-firewall4 ipset branch.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
    loads the file-backed network sets.
 4. firewall MARK rules apply mark `0x1` to matching LAN traffic.
-5. the network policy rule looks up table `vpn`, and the hotplug script keeps
-   its default route pointed at sing-box's `tun0`. The hotplug script waits for
+5. the network policy rules send marked LAN packets and router-local downloads
+   bound to `tun0` to table `vpn`, and the hotplug script keeps its default route
+   pointed at sing-box's `tun0`. The hotplug script waits for
    the interface for at most ten seconds and fails without changing the route
    when the interface never appears.
 

@@ -152,6 +152,32 @@
     - Restart network
     - Install vpn route
 
+- name: Route locally bound tun0 downloads through the vpn table
+  uci:
+    command: section
+    config: network
+    type: rule
+    find_by:
+      name: tun0_download
+    value:
+      out: tun0
+      priority: 90
+      lookup: vpn
+  when: getdomains_download_interface == 'tun0'
+  notify:
+    - Restart network
+    - Install vpn route
+
+- name: Remove the tun0 download rule when another interface is selected
+  uci:
+    command: absent
+    config: network
+    type: rule
+    find_by:
+      name: tun0_download
+  when: getdomains_download_interface != 'tun0'
+  notify: Restart network
+
 - name: Configure enabled destination sets
   uci:
     command: section
