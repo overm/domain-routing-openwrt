@@ -44,8 +44,11 @@ files only; there is no pre-firewall4 ipset branch.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
    loads the file-backed network sets.
 4. The raw `tun0` device is registered as the unmanaged netifd interface
-   `singbox_tun`. The firewall accepts replies from this internal TUN device to
-   router-local sockets, while new forwarding from the TUN zone remains rejected.
+   `singbox_tun`. The firewall keeps unsolicited TUN input and new forwarding
+   rejected. The sing-box system TUN stack creates new TCP client flows that are
+   not yet tracked as established, so a narrow input rule accepts only traffic
+   from the TUN peer `172.16.250.2` to the local TUN address and the standard
+   ephemeral-port range `32768-60999`.
 5. firewall MARK rules apply mark `0x1` to matching LAN traffic.
 6. the network policy rules send marked LAN packets and router-local downloads
    bound to `tun0` to table `vpn`. The output-interface rule refers to the
