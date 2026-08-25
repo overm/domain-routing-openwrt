@@ -22,7 +22,7 @@ fi
 
 green "Refreshing apk indexes"
 apk update
-apk add sing-box dnsmasq-full nano
+apk add sing-box dnsmasq-full ip-full nano
 
 AVAILABLE_SPACE=$(df -k / | awk 'NR == 2 { print $4 }')
 if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then

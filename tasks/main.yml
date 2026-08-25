@@ -33,7 +33,7 @@
 
 - name: Install required packages with apk
   shell: "apk info -e {{ item }} >/dev/null 2>&1 || apk add {{ item }}"
-  loop: "{{ ['curl', 'sing-box'] + (['nano'] if nano else []) }}"
+  loop: "{{ ['curl', 'ip-full', 'sing-box'] + (['nano'] if nano else []) }}"
   register: apk_packages
   changed_when: "'Installing' in apk_packages.stdout or 'OK:' in apk_packages.stdout"
 

@@ -34,8 +34,10 @@ files only; there is no pre-firewall4 ipset branch.
 
 ## Data flow
 
-1. The standalone launch command installs curl; `apk` then installs sing-box
-   and dnsmasq-full. The Ansible role installs all of its required packages.
+1. The standalone launch command installs curl; `apk` then installs sing-box,
+   dnsmasq-full, and ip-full. The Ansible role installs all of its required
+   packages. The full `ip` implementation is required for the `oif tun0`
+   policy rule used by router-local downloads.
 2. `getdomains` serializes refreshes with a lock, downloads lists to temporary
    files, validates the domain list, and atomically replaces only valid data.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
