@@ -176,7 +176,9 @@
     find_by:
       name: tun0_download
   when: getdomains_download_interface != 'tun0'
-  notify: Restart network
+  notify:
+    - Restart network
+    - Install vpn route
 
 - name: Configure enabled destination sets
   uci:
