@@ -11,18 +11,16 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 `apk add` и `apk info -e`. Проект теперь рассчитан только на firewall4/nftables
 и списки dnsmasq `nfset`; код совместимости со старым ipset удалён.
 
-Команда запуска устанавливает `curl`, необходимый для загрузки скрипта.
-Автономный установщик до внесения изменений проверяет версию OpenWrt и наличие
-`apk` и `curl`. Он устанавливает `sing-box`, `dnsmasq-full`, `ip-full` и `nano`,
+Команда запуска загружает скрипт через входящий в BusyBox `wget`. Автономный
+установщик до внесения изменений проверяет версию OpenWrt и наличие `apk`. Он
+устанавливает `curl`, `sing-box`, `dnsmasq-full`, `ip-full` и `nano`,
 создаёт
 правила для `tun0`, сохраняет команды диагностики и удаления в `/usr/bin` и не
 перезаписывает существующий `/etc/sing-box/config.json`. В конце установки
 скрипт предлагает сразу открыть этот конфиг в `nano`.
 
 ```sh
-apk update && apk add curl
-curl -fsSL https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh -o /tmp/getdomains-install.sh
-sh /tmp/getdomains-install.sh
+wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
 
 В начальном конфиге sing-box есть значения `CHANGE_ME`. Замените их и проверьте
