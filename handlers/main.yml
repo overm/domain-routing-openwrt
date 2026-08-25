@@ -7,7 +7,10 @@
   - name: Restart network
     service:
       name: network
-      state: restarted
+      state: reloaded
+
+  - name: Install vpn route
+    command: /etc/hotplug.d/iface/30-vpnroute
 
   - name: Restart firewall
     service:

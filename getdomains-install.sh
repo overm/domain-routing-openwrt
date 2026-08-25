@@ -154,11 +154,31 @@ cat > /etc/init.d/getdomains <<EOF
 #!/bin/sh /etc/rc.common
 START=99
 
+wait_for_download_path() {
+    url=\$1
+    host=\${url#*://}
+    host=\${host%%/*}
+    host=\${host%%:*}
+    waited=0
+
+    while [ "\$waited" -lt 30 ]; do
+        if ip link show dev tun0 >/dev/null 2>&1 && \
+            nslookup "\$host" >/dev/null 2>&1; then
+            return 0
+        fi
+        waited=\$((waited + 1))
+        sleep 1
+    done
+    logger -t getdomains "download path is not ready: interface=tun0 host=\$host"
+    return 1
+}
+
 download_domains() {
     destination=/tmp/dnsmasq.d/domains.lst
     temporary="\${destination}.tmp.\$\$"
 
     rm -f "\$temporary"
+    wait_for_download_path '$DOMAINS_URL' || return 1
     if ! curl -fL --interface tun0 --connect-timeout 10 --max-time 120 --retry 5 \\
         --retry-delay 2 '$DOMAINS_URL' -o "\$temporary"; then
         rm -f "\$temporary"
@@ -220,7 +240,10 @@ else
     red "sing-box configuration is not valid; skipping the initial domain-list download."
 fi
 /etc/init.d/firewall restart
-/etc/init.d/network restart
+/etc/init.d/network reload
+if ! /etc/hotplug.d/iface/30-vpnroute; then
+    red "Could not install the vpn default route; tun0 is not ready."
+fi
 
 SINGBOX_READY=0
 if [ "$SINGBOX_STARTED" -eq 1 ]; then

@@ -23,6 +23,7 @@
       - getdomains_connect_timeout | int > 0
       - getdomains_max_time | int > 0
       - getdomains_retries | int >= 0
+      - getdomains_ready_timeout | int > 0
       - getdomains_download_interface is match('^[A-Za-z0-9_.:-]+$')
     fail_msg: "Invalid country or getdomains download settings."
 
@@ -86,7 +87,9 @@
   lineinfile:
     path: /etc/iproute2/rt_tables
     line: "99 vpn"
-  notify: Restart network
+  notify:
+    - Restart network
+    - Install vpn route
 
 - name: Configure sing-box firewall zone
   uci:
@@ -145,7 +148,9 @@
       mark: "0x1"
       priority: 100
       lookup: vpn
-  notify: Restart network
+  notify:
+    - Restart network
+    - Install vpn route
 
 - name: Configure enabled destination sets
   uci:

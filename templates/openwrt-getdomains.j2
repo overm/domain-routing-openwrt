@@ -2,12 +2,33 @@
 
 START=99
 
+wait_for_download_path() {
+    url=$1
+    interface='{{ getdomains_download_interface }}'
+    host=${url#*://}
+    host=${host%%/*}
+    host=${host%%:*}
+    waited=0
+
+    while [ "$waited" -lt {{ getdomains_ready_timeout | int }} ]; do
+        if ip link show dev "$interface" >/dev/null 2>&1 && \
+            nslookup "$host" >/dev/null 2>&1; then
+            return 0
+        fi
+        waited=$((waited + 1))
+        sleep 1
+    done
+    logger -t getdomains "download path is not ready: interface=$interface host=$host"
+    return 1
+}
+
 download() {
     url=$1
     destination=$2
     temporary="${destination}.tmp.$$"
 
     rm -f "$temporary"
+    wait_for_download_path "$url" || return 1
     if ! curl -fL --interface '{{ getdomains_download_interface }}' \
         --connect-timeout {{ getdomains_connect_timeout | int }} \
         --max-time {{ getdomains_max_time | int }} --retry {{ getdomains_retries | int }} \
