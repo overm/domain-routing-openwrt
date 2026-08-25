@@ -50,6 +50,7 @@ nano: true
 getdomains_connect_timeout: 10 # seconds per connection attempt
 getdomains_max_time: 120       # seconds per download attempt
 getdomains_retries: 5
+getdomains_ready_timeout: 30     # wait for the interface and DNS, seconds
 getdomains_download_interface: tun0 # interface used to download lists
 ```
 
@@ -76,7 +77,10 @@ previous list remains active after a network or validation failure, and
 services restart only when a list actually changes. The list source URLs can
 also be overridden with `domain_list_urls`, `subnet_list_url`, `ip_list_url`,
 and `community_list_url`.
-Downloads use `getdomains_download_interface` (`tun0` by default), so the list
+Downloads use `getdomains_download_interface` (`tun0` by default). Before each
+download, the script waits up to `getdomains_ready_timeout` seconds for the
+interface and source-hostname resolution, so a brief DNS interruption while
+network settings are applied does not cause an immediate failure. The list
 source does not need to be reachable directly over WAN. Configure and start
 sing-box before the first refresh. If the installer cannot complete the initial
 download, run `/etc/init.d/getdomains start` manually after the tunnel starts.

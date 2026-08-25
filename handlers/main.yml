@@ -7,7 +7,7 @@
   - name: Restart network
     service:
       name: network
-      state: restarted
+      state: reloaded
 
   - name: Restart firewall
     service:
