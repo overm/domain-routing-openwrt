@@ -32,6 +32,13 @@ sing-box check -c /etc/sing-box/config.json
 service sing-box restart
 ```
 
+Keep `route.auto_detect_interface: true` in a TUN configuration, or configure
+the equivalent global `route.default_interface`. Using
+`outbound.bind_interface` is safe only when every outbound that can carry TUN
+traffic is bound; the diagnostic conservatively requires it on every outbound.
+Without that binding, traffic can loop back into `tun0`. The installer preserves
+an existing JSON file, so verify this setting in custom configurations as well.
+
 ## Ansible role
 
 Public defaults:
@@ -76,9 +83,16 @@ services restart only when a list actually changes. The list source URLs can
 also be overridden with `domain_list_urls`, `subnet_list_url`, `ip_list_url`,
 and `community_list_url`.
 Downloads use `getdomains_download_interface` (`tun0` by default). Before each
-download, a separate policy rule sends the router-local `curl` socket bound to
-`tun0` through the `vpn` table; a default route that exists only in that table
-does not select the table on its own. The script waits up to
+download, the device is registered with netifd as the unmanaged logical
+interface `singbox_tun`. A separate policy rule sends the router-local `curl`
+socket bound to `tun0` through the `vpn` table via `singbox_tun`: UCI's `out`
+field refers to an OpenWrt logical interface, not directly to a Linux device
+name. The TUN zone rejects unsolicited router input and new forwarding from the
+zone. The sing-box system TUN stack creates a new TCP flow for a client
+connection, which conntrack does not yet classify as `ESTABLISHED`. A narrow
+rule accepts it only from the TUN peer `172.16.250.2` to `172.16.250.1` and the
+standard local ephemeral-port range `32768-60999`. It does not expose the SSH,
+LuCI, or DNS ports. The script waits up to
 `getdomains_ready_timeout` seconds for the
 interface and source-hostname resolution, so a brief DNS interruption while
 network settings are applied does not cause an immediate failure. The list

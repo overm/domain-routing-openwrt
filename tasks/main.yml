@@ -91,6 +91,19 @@
     - Restart network
     - Install vpn route
 
+- name: Register the sing-box TUN device with netifd
+  uci:
+    command: section
+    config: network
+    type: interface
+    name: singbox_tun
+    value:
+      proto: none
+      device: tun0
+  notify:
+    - Restart network
+    - Install vpn route
+
 - name: Configure sing-box firewall zone
   uci:
     command: section
@@ -107,6 +120,34 @@
       mtu_fix: 1
       device: tun0
       family: ipv4
+  notify: Restart firewall
+
+- name: Allow TCP flows created by the sing-box system TUN stack
+  uci:
+    command: section
+    config: firewall
+    type: rule
+    find_by:
+      name: Allow TUN TCP client flows
+    value:
+      src: tun
+      src_ip: 172.16.250.2
+      dest_ip: 172.16.250.1
+      proto: tcp
+      dest_port: 32768-60999
+      target: ACCEPT
+      family: ipv4
+  when: getdomains_download_interface == 'tun0'
+  notify: Restart firewall
+
+- name: Remove the local TUN client flow rule when another download interface is selected
+  uci:
+    command: absent
+    config: firewall
+    type: rule
+    find_by:
+      name: Allow TUN TCP client flows
+  when: getdomains_download_interface != 'tun0'
   notify: Restart firewall
 
 - name: Configure LAN forwarding to sing-box
@@ -160,7 +201,7 @@
     find_by:
       name: tun0_download
     value:
-      out: tun0
+      out: singbox_tun
       priority: 90
       lookup: vpn
   when: getdomains_download_interface == 'tun0'
