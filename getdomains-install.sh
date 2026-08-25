@@ -15,14 +15,9 @@ if ! command -v apk >/dev/null 2>&1; then
     red "apk was not found. OpenWrt 25+ firmware with apk is required (not apt or opkg)."
     exit 1
 fi
-if ! command -v curl >/dev/null 2>&1; then
-    red "curl was not found. Install it before launching this script: apk update && apk add curl"
-    exit 1
-fi
-
 green "Refreshing apk indexes"
 apk update
-apk add sing-box dnsmasq-full ip-full nano
+apk add curl sing-box dnsmasq-full ip-full nano
 
 AVAILABLE_SPACE=$(df -k / | awk 'NR == 2 { print $4 }')
 if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
