@@ -241,6 +241,9 @@ else
 fi
 /etc/init.d/firewall restart
 /etc/init.d/network reload
+if ! /etc/hotplug.d/iface/30-vpnroute; then
+    red "Could not install the vpn default route; tun0 is not ready."
+fi
 
 SINGBOX_READY=0
 if [ "$SINGBOX_STARTED" -eq 1 ]; then

@@ -87,7 +87,9 @@
   lineinfile:
     path: /etc/iproute2/rt_tables
     line: "99 vpn"
-  notify: Restart network
+  notify:
+    - Restart network
+    - Install vpn route
 
 - name: Configure sing-box firewall zone
   uci:
@@ -146,7 +148,9 @@
       mark: "0x1"
       priority: 100
       lookup: vpn
-  notify: Restart network
+  notify:
+    - Restart network
+    - Install vpn route
 
 - name: Configure enabled destination sets
   uci:
