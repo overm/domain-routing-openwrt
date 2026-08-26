@@ -89,6 +89,7 @@ service sing-box restart
   "inbounds": [
     {
       "type": "tun",
+      "tag": "tun-in",
       "interface_name": "tun0",
       "address": [
         "172.16.250.1/30"
@@ -104,6 +105,7 @@ service sing-box restart
     }
   ],
   "route": {
+    "auto_detect_interface": true,
     "final": "direct-out"
   }
 }
