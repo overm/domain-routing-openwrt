@@ -6,6 +6,7 @@ green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
 ADD_IP_CHECK_DOMAIN=1
+ICANHAZIP_MAPPING_CHANGED=0
 WDNS=
 usage() {
     printf 'Usage: %s [--no-icanhazip] [--wdns DNS_IPV4]\n' "$0"
@@ -171,15 +172,25 @@ commit network
 commit firewall
 EOF
 
-uci -q delete dhcp.vpn_icanhazip || true
 if [ "$ADD_IP_CHECK_DOMAIN" -eq 1 ]; then
-    uci -q batch <<'EOF'
+    if [ "$(uci -q get dhcp.vpn_icanhazip)" != ipset ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.name)" != vpn_domains ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.domain)" != icanhazip.com ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.table)" != fw4 ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.table_family)" != inet ]; then
+        ICANHAZIP_MAPPING_CHANGED=1
+        uci -q delete dhcp.vpn_icanhazip || true
+        uci -q batch <<'EOF'
 set dhcp.vpn_icanhazip=ipset
 add_list dhcp.vpn_icanhazip.name='vpn_domains'
 add_list dhcp.vpn_icanhazip.domain='icanhazip.com'
 set dhcp.vpn_icanhazip.table='fw4'
 set dhcp.vpn_icanhazip.table_family='inet'
 EOF
+    fi
+elif uci -q get dhcp.vpn_icanhazip >/dev/null; then
+    ICANHAZIP_MAPPING_CHANGED=1
+    uci -q delete dhcp.vpn_icanhazip
 fi
 uci commit dhcp
 
@@ -305,6 +316,9 @@ esac
 # network after sing-box has created tun0 can leave the service needing another
 # manual restart before the edited configuration takes effect.
 /etc/init.d/firewall restart
+if [ "$ICANHAZIP_MAPPING_CHANGED" -eq 1 ]; then
+    /etc/init.d/dnsmasq restart
+fi
 /etc/init.d/network reload
 
 SINGBOX_STARTED=0
