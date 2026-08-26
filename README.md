@@ -25,7 +25,10 @@ wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domai
 ```
 
 По умолчанию установщик добавляет `icanhazip.com` в набор `vpn_domains`, чтобы
-проверка внешнего IP выполнялась через туннель. Эта привязка сохраняется как
+проверка внешнего IP выполнялась через туннель. Правило `mark_local_domains`
+маркирует совпадающий трафик самого роутера в `mangle_output`, поэтому команды
+`curl icanhazip.com` и `curl --interface tun0 icanhazip.com` используют один и
+тот же туннельный маршрут. Эта привязка сохраняется как
 отдельная секция `vpn_icanhazip` в `/etc/config/dhcp` и отображается в LuCI на
 вкладке **DNS → IP Sets**; в загружаемый файл `/tmp/dnsmasq.d/domains.lst`
 установщик её не дописывает. Чтобы развернуть конфигурацию без этого домена,

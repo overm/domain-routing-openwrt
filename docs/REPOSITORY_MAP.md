@@ -51,10 +51,13 @@ files only; there is no pre-firewall4 ipset branch.
    not yet tracked as established, so a narrow input rule accepts only traffic
    from the TUN peer `172.16.250.2` to the local TUN address and the standard
    ephemeral-port range `32768-60999`.
-5. firewall MARK rules apply mark `0x1` to matching LAN traffic.
-6. the network policy rules send marked LAN packets and router-local downloads
-   bound to `tun0` to table `vpn`. The output-interface rule refers to the
-   logical `singbox_tun` interface so netifd can resolve it to the `tun0` device,
+5. firewall MARK rules apply mark `0x1` to matching LAN traffic. A separate
+   `mangle_output` rule applies the same mark to router-local IPv4 traffic whose
+   destination is in `vpn_domains`.
+6. the network policy rules send marked LAN and router-local packets, as well as
+   router-local downloads bound to `tun0`, to table `vpn`. The output-interface
+   rule refers to the logical `singbox_tun` interface so netifd can resolve it
+   to the `tun0` device,
    and the hotplug script keeps the table's default route pointed at `tun0`.
    The hotplug script waits for
    the interface for at most ten seconds and fails without changing the route

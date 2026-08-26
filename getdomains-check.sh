@@ -20,6 +20,7 @@ if [ "$LANGUAGE" = en ]; then
     BAD_ROUTE="vpn table has no default route through tun0"
     BAD_TUN_INTERFACE="netifd interface singbox_tun is missing"
     BAD_DOWNLOAD_RULE="locally bound tun0 traffic does not use the vpn table"
+    BAD_LOCAL_DOMAIN_RULE="router-local vpn_domains traffic is not marked"
     BAD_TUN_INPUT="firewall accepts unsolicited input from tun0"
     BAD_TUN_REPLY_RULE="narrow firewall rule for sing-box TUN client flows is missing"
 else
@@ -31,6 +32,7 @@ else
     BAD_ROUTE="в таблице vpn нет маршрута по умолчанию через tun0"
     BAD_TUN_INTERFACE="интерфейс netifd singbox_tun отсутствует"
     BAD_DOWNLOAD_RULE="локальный трафик, привязанный к tun0, не направляется в таблицу vpn"
+    BAD_LOCAL_DOMAIN_RULE="локальный трафик роутера к vpn_domains не маркируется"
     BAD_TUN_INPUT="firewall принимает незапрошенный входящий трафик из tun0"
     BAD_TUN_REPLY_RULE="отсутствует узкое правило firewall для клиентских соединений sing-box TUN"
 fi
@@ -81,6 +83,16 @@ else
     fail "$BAD_TUN_INTERFACE"
 fi
 if ip rule show 2>/dev/null | grep -q 'oif tun0.*lookup vpn'; then ok "tun0 download rule"; else fail "$BAD_DOWNLOAD_RULE"; fi
+if [ "$(uci -q get firewall.mark_local_domains.dest)" = '*' ] &&
+    [ "$(uci -q get firewall.mark_local_domains.ipset)" = vpn_domains ] &&
+    [ "$(uci -q get firewall.mark_local_domains.set_mark)" = 0x1 ] &&
+    [ -z "$(uci -q get firewall.mark_local_domains.src)" ] &&
+    nft list chain inet fw4 mangle_output 2>/dev/null |
+    grep -q 'ip daddr @vpn_domains.*meta mark set 0x0*1.*mark_local_domains'; then
+    ok "router-local vpn_domains marking"
+else
+    fail "$BAD_LOCAL_DOMAIN_RULE"
+fi
 if nft list chain inet fw4 input_tun 2>/dev/null |
     grep -q 'jump reject_from_tun'; then
     ok "tun0 unsolicited input rejected"
