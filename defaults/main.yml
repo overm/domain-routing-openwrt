@@ -12,6 +12,7 @@
   getdomains_retries: 5
   getdomains_ready_timeout: 30
   getdomains_download_interface: tun0
+  add_icanhazip_domain: true
   domain_list_urls:
     russia-inside: https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst
     russia-outside: https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-nfset.lst

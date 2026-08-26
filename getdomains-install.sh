@@ -5,6 +5,20 @@ set -eu
 green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
+ADD_IP_CHECK_DOMAIN=1
+case ${1:-} in
+    '') ;;
+    --no-icanhazip) ADD_IP_CHECK_DOMAIN=0 ;;
+    -h|--help)
+        printf 'Usage: %s [--no-icanhazip]\n' "$0"
+        exit 0
+        ;;
+    *)
+        red "Usage: $0 [--no-icanhazip]"
+        exit 2
+        ;;
+esac
+
 . /etc/os-release
 VERSION_MAJOR=${VERSION_ID%%.*}
 if [ "$VERSION_MAJOR" -lt 25 ]; then
@@ -196,6 +210,9 @@ download_domains() {
         rm -f "\$temporary"
         logger -t getdomains "domain list download through tun0 failed"
         return 1
+    fi
+    if [ '$ADD_IP_CHECK_DOMAIN' -eq 1 ]; then
+        printf '\n%s\n' 'nftset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "\$temporary"
     fi
     if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
         rm -f "\$temporary"
