@@ -71,6 +71,9 @@ start() {
 {% if list_domains %}
     domains=/tmp/dnsmasq.d/domains.lst
     if download '{{ domain_list_urls[country] }}' "$domains"; then
+{% if add_icanhazip_domain | bool %}
+        printf '\n%s\n' 'nfset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "${domains}.tmp.$$"
+{% endif %}
         if dnsmasq --conf-file="${domains}.tmp.$$" --test >/dev/null 2>&1; then
             install_download "$domains" && dnsmasq_changed=1
         else

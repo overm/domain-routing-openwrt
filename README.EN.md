@@ -25,6 +25,14 @@ it, and restarts sing-box after applying the network configuration.
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
 
+By default, the installer adds `icanhazip.com` to the `vpn_domains` set so an
+external-IP check uses the tunnel. To deploy without that domain, pass
+`--no-icanhazip`:
+
+```sh
+sh /tmp/getdomains-install.sh --no-icanhazip
+```
+
 The generated sing-box file contains `CHANGE_ME` placeholders. Edit it and
 validate it before starting the service:
 
@@ -58,6 +66,7 @@ getdomains_max_time: 120       # seconds per download attempt
 getdomains_retries: 5
 getdomains_ready_timeout: 30     # wait for the interface and DNS, seconds
 getdomains_download_interface: tun0 # interface used to download lists
+add_icanhazip_domain: true          # add icanhazip.com to vpn_domains
 ```
 
 Example:

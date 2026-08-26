@@ -24,6 +24,14 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
 
+По умолчанию установщик добавляет `icanhazip.com` в набор `vpn_domains`, чтобы
+проверка внешнего IP выполнялась через туннель. Чтобы развернуть конфигурацию без
+этого домена, запустите установщик с флагом `--no-icanhazip`:
+
+```sh
+sh /tmp/getdomains-install.sh --no-icanhazip
+```
+
 В начальном конфиге sing-box есть значения `CHANGE_ME`. Замените их и проверьте
 конфигурацию до запуска сервиса:
 
@@ -58,6 +66,7 @@ getdomains_max_time: 120       # тайм-аут одной загрузки, с
 getdomains_retries: 5
 getdomains_ready_timeout: 30     # ожидание интерфейса и DNS, секунды
 getdomains_download_interface: tun0 # интерфейс для загрузки списков
+add_icanhazip_domain: true          # добавить icanhazip.com в vpn_domains
 ```
 
 Пример playbook:
