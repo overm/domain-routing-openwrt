@@ -241,6 +241,12 @@ case ${EDIT_SINGBOX:-n} in
     y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
 esac
 
+# Apply netifd and firewall changes before starting sing-box. Reloading the
+# network after sing-box has created tun0 can leave the service needing another
+# manual restart before the edited configuration takes effect.
+/etc/init.d/firewall restart
+/etc/init.d/network reload
+
 SINGBOX_STARTED=0
 if sing-box check -c /etc/sing-box/config.json; then
     if /etc/init.d/sing-box restart; then
@@ -251,8 +257,6 @@ if sing-box check -c /etc/sing-box/config.json; then
 else
     red "sing-box configuration is not valid; skipping the initial domain-list download."
 fi
-/etc/init.d/firewall restart
-/etc/init.d/network reload
 if ! /etc/hotplug.d/iface/30-vpnroute; then
     red "Could not install the vpn default route; tun0 is not ready."
 fi

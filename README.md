@@ -17,7 +17,8 @@ Debian/Ubuntu. Поэтому обе реализации проекта исп�
 создаёт
 правила для `tun0`, сохраняет команды диагностики и удаления в `/usr/bin` и не
 перезаписывает существующий `/etc/sing-box/config.json`. В конце установки
-скрипт предлагает сразу открыть этот конфиг в `nano`.
+скрипт предлагает сразу открыть этот конфиг в `nano`, проверяет его и
+перезапускает sing-box после применения настроек сети.
 
 ```sh
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh

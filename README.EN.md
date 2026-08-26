@@ -18,7 +18,8 @@ before changing the device. It installs `curl`, `sing-box`, `dnsmasq-full`,
 `ip-full`, and `nano`, saves the diagnostics and removal
 commands in `/usr/bin`, creates the `tun0` firewall/routing configuration, and
 preserves an existing `/etc/sing-box/config.json`. At the end of installation,
-the script offers to open that configuration in `nano` immediately.
+the script offers to open that configuration in `nano` immediately, validates
+it, and restarts sing-box after applying the network configuration.
 
 ```sh
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh

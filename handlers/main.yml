@@ -1,21 +1,25 @@
 ---
-  - name: Restart sing-box
-    service:
-      name: sing-box
-      state: restarted
-
   - name: Restart network
     service:
       name: network
       state: reloaded
 
-  - name: Install vpn route
-    command: /etc/hotplug.d/iface/30-vpnroute
-
   - name: Restart firewall
     service:
       name: firewall
       state: restarted
+
+  # The network reload must happen before sing-box is restarted. Otherwise
+  # netifd can reconfigure singbox_tun after the new process has created tun0,
+  # leaving the freshly edited sing-box configuration ineffective until a
+  # second, manual service restart.
+  - name: Restart sing-box
+    service:
+      name: sing-box
+      state: restarted
+
+  - name: Install vpn route
+    command: /etc/hotplug.d/iface/30-vpnroute
 
   - name: Run getdomains script
     service:
