@@ -13,6 +13,7 @@ for section in singbox tun_client_flows lan_singbox vpn_domains vpn_subnets vpn_
 done
 uci commit network
 uci commit firewall
+uci -q delete dhcp.vpn_icanhazip || true
 uci -q delete dhcp.wdns || true
 uci commit dhcp
 

@@ -6,6 +6,7 @@ green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
 ADD_IP_CHECK_DOMAIN=1
+ICANHAZIP_MAPPING_CHANGED=0
 WDNS=
 usage() {
     printf 'Usage: %s [--no-icanhazip] [--wdns DNS_IPV4]\n' "$0"
@@ -169,8 +170,29 @@ set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
 commit sing-box
 commit network
 commit firewall
-commit dhcp
 EOF
+
+if [ "$ADD_IP_CHECK_DOMAIN" -eq 1 ]; then
+    if [ "$(uci -q get dhcp.vpn_icanhazip)" != ipset ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.name)" != vpn_domains ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.domain)" != icanhazip.com ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.table)" != fw4 ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.table_family)" != inet ]; then
+        ICANHAZIP_MAPPING_CHANGED=1
+        uci -q delete dhcp.vpn_icanhazip || true
+        uci -q batch <<'EOF'
+set dhcp.vpn_icanhazip=ipset
+add_list dhcp.vpn_icanhazip.name='vpn_domains'
+add_list dhcp.vpn_icanhazip.domain='icanhazip.com'
+set dhcp.vpn_icanhazip.table='fw4'
+set dhcp.vpn_icanhazip.table_family='inet'
+EOF
+    fi
+elif uci -q get dhcp.vpn_icanhazip >/dev/null; then
+    ICANHAZIP_MAPPING_CHANGED=1
+    uci -q delete dhcp.vpn_icanhazip
+fi
+uci commit dhcp
 
 if [ -n "$WDNS" ]; then
     uci -q delete dhcp.wdns.dhcp_option || true
@@ -246,9 +268,6 @@ download_domains() {
         logger -t getdomains "domain list download through tun0 failed"
         return 1
     fi
-    if [ '$ADD_IP_CHECK_DOMAIN' -eq 1 ]; then
-        printf '\n%s\n' 'nftset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "\$temporary"
-    fi
     if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
         rm -f "\$temporary"
         logger -t getdomains "downloaded domain list failed validation"
@@ -297,6 +316,9 @@ esac
 # network after sing-box has created tun0 can leave the service needing another
 # manual restart before the edited configuration takes effect.
 /etc/init.d/firewall restart
+if [ "$ICANHAZIP_MAPPING_CHANGED" -eq 1 ]; then
+    /etc/init.d/dnsmasq restart
+fi
 /etc/init.d/network reload
 
 SINGBOX_STARTED=0

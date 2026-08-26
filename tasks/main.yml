@@ -60,6 +60,31 @@
       confdir: /tmp/dnsmasq.d
   notify: Restart dnsmasq
 
+- name: Configure the icanhazip.com domain set mapping
+  uci:
+    command: section
+    config: dhcp
+    type: ipset
+    name: vpn_icanhazip
+    value:
+      name:
+        - vpn_domains
+      domain:
+        - icanhazip.com
+      table: fw4
+      table_family: inet
+  when:
+    - list_domains | bool
+    - add_icanhazip_domain | bool
+  notify: Restart dnsmasq
+
+- name: Remove the icanhazip.com domain set mapping when disabled
+  uci:
+    command: absent
+    key: dhcp.vpn_icanhazip
+  when: not list_domains | bool or not add_icanhazip_domain | bool
+  notify: Restart dnsmasq
+
 - name: Configure the wdns DHCP tag
   uci:
     command: section

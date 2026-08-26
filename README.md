@@ -25,8 +25,11 @@ wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domai
 ```
 
 По умолчанию установщик добавляет `icanhazip.com` в набор `vpn_domains`, чтобы
-проверка внешнего IP выполнялась через туннель. Чтобы развернуть конфигурацию без
-этого домена, запустите установщик с флагом `--no-icanhazip`:
+проверка внешнего IP выполнялась через туннель. Эта привязка сохраняется как
+отдельная секция `vpn_icanhazip` в `/etc/config/dhcp` и отображается в LuCI на
+вкладке **DNS → IP Sets**; в загружаемый файл `/tmp/dnsmasq.d/domains.lst`
+установщик её не дописывает. Чтобы развернуть конфигурацию без этого домена,
+запустите установщик с флагом `--no-icanhazip`:
 
 ```sh
 sh /tmp/getdomains-install.sh --no-icanhazip
@@ -82,7 +85,7 @@ getdomains_max_time: 120       # тайм-аут одной загрузки, с
 getdomains_retries: 5
 getdomains_ready_timeout: 30     # ожидание интерфейса и DNS, секунды
 getdomains_download_interface: tun0 # интерфейс для загрузки списков
-add_icanhazip_domain: true          # добавить icanhazip.com в vpn_domains
+add_icanhazip_domain: true          # добавить UCI-привязку icanhazip.com к vpn_domains
 ```
 
 Пример playbook:
