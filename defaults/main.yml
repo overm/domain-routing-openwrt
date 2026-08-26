@@ -5,6 +5,7 @@
   list_community: false
   tunnel: singbox
   dns_encrypt: false
+  wdns: false
   country: russia-inside
   nano: true
   getdomains_connect_timeout: 10

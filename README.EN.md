@@ -33,6 +33,21 @@ external-IP check uses the tunnel. To deploy without that domain, pass
 sh /tmp/getdomains-install.sh --no-icanhazip
 ```
 
+The `--wdns DNS_IPV4` option creates the `wdns` DHCP tag and assigns a DNS
+server reachable through the tunnel to that tag. For example:
+
+```sh
+sh /tmp/getdomains-install.sh --wdns 172.16.250.2
+```
+
+To send this DNS server together with a fixed IPv4 address, add the tag to the
+static lease's `host` section in `/etc/config/dhcp` (or select the `wdns` tag
+for the static lease in LuCI):
+
+```text
+list tag 'wdns'
+```
+
 The generated sing-box file contains `CHANGE_ME` placeholders. Edit it and
 validate it before starting the service:
 
@@ -60,6 +75,7 @@ list_subnet: false
 list_ip: false
 list_community: false
 dns_encrypt: false              # false, dnscrypt-proxy2, stubby
+wdns: false                     # false or a tunnel-reachable DNS IPv4 address
 nano: true
 getdomains_connect_timeout: 10 # seconds per connection attempt
 getdomains_max_time: 120       # seconds per download attempt

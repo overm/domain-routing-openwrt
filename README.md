@@ -32,6 +32,21 @@ wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domai
 sh /tmp/getdomains-install.sh --no-icanhazip
 ```
 
+Флаг `--wdns DNS_IPV4` создаёт DHCP-тег `wdns` и задаёт для него DNS-сервер,
+доступный внутри туннеля. Например:
+
+```sh
+sh /tmp/getdomains-install.sh --wdns 172.16.250.2
+```
+
+Чтобы клиент со статической арендой получил этот DNS вместе с фиксированным
+IPv4-адресом, добавьте тег к соответствующей секции `host` в
+`/etc/config/dhcp` (или выберите тег `wdns` для static lease в LuCI):
+
+```text
+list tag 'wdns'
+```
+
 В начальном конфиге sing-box есть значения `CHANGE_ME`. Замените их и проверьте
 конфигурацию до запуска сервиса:
 
@@ -60,6 +75,7 @@ list_subnet: false
 list_ip: false
 list_community: false
 dns_encrypt: false              # false, dnscrypt-proxy2, stubby
+wdns: false                     # false или IPv4 DNS внутри туннеля
 nano: true
 getdomains_connect_timeout: 10 # тайм-аут подключения, секунды
 getdomains_max_time: 120       # тайм-аут одной загрузки, секунды

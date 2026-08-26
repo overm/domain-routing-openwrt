@@ -13,9 +13,12 @@ for section in singbox tun_client_flows lan_singbox vpn_domains vpn_subnets vpn_
 done
 uci commit network
 uci commit firewall
+uci -q delete dhcp.wdns || true
+uci commit dhcp
 
 rm -rf /tmp/dnsmasq.d /tmp/lst
 /etc/init.d/cron restart
+/etc/init.d/dnsmasq restart
 /etc/init.d/firewall restart
 /etc/init.d/network restart
 
