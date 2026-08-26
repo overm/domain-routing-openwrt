@@ -312,6 +312,33 @@
   when: item.enabled | bool
   notify: Restart firewall
 
+- name: Mark router-local traffic to domain-set destinations
+  uci:
+    command: section
+    config: firewall
+    type: rule
+    find_by:
+      name: mark_local_domains
+    value:
+      dest: "*"
+      proto: all
+      ipset: vpn_domains
+      set_mark: "0x1"
+      target: MARK
+      family: ipv4
+  when: list_domains | bool
+  notify: Restart firewall
+
+- name: Remove the router-local domain mark rule when disabled
+  uci:
+    command: absent
+    config: firewall
+    type: rule
+    find_by:
+      name: mark_local_domains
+  when: not list_domains | bool
+  notify: Restart firewall
+
 - name: Remove disabled destination sets
   uci:
     command: absent

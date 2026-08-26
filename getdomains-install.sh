@@ -166,6 +166,14 @@ set firewall.mark_domains.ipset='vpn_domains'
 set firewall.mark_domains.set_mark='0x1'
 set firewall.mark_domains.target='MARK'
 set firewall.mark_domains.family='ipv4'
+set firewall.mark_local_domains=rule
+set firewall.mark_local_domains.name='mark_local_domains'
+set firewall.mark_local_domains.dest='*'
+set firewall.mark_local_domains.proto='all'
+set firewall.mark_local_domains.ipset='vpn_domains'
+set firewall.mark_local_domains.set_mark='0x1'
+set firewall.mark_local_domains.target='MARK'
+set firewall.mark_local_domains.family='ipv4'
 set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
 commit sing-box
 commit network
