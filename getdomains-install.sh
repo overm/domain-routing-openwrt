@@ -212,7 +212,7 @@ download_domains() {
         return 1
     fi
     if [ '$ADD_IP_CHECK_DOMAIN' -eq 1 ]; then
-        printf '\n%s\n' 'nfset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "\$temporary"
+        printf '\n%s\n' 'nftset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "\$temporary"
     fi
     if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
         rm -f "\$temporary"
