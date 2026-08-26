@@ -173,9 +173,9 @@ commit dhcp
 EOF
 
 if [ -n "$WDNS" ]; then
+    uci -q delete dhcp.wdns.dhcp_option || true
     uci -q batch <<EOF
 set dhcp.wdns=tag
-delete dhcp.wdns.dhcp_option
 add_list dhcp.wdns.dhcp_option='6,$WDNS'
 commit dhcp
 EOF
