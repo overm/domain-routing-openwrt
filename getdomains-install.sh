@@ -169,8 +169,19 @@ set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
 commit sing-box
 commit network
 commit firewall
-commit dhcp
 EOF
+
+uci -q delete dhcp.vpn_icanhazip || true
+if [ "$ADD_IP_CHECK_DOMAIN" -eq 1 ]; then
+    uci -q batch <<'EOF'
+set dhcp.vpn_icanhazip=ipset
+add_list dhcp.vpn_icanhazip.name='vpn_domains'
+add_list dhcp.vpn_icanhazip.domain='icanhazip.com'
+set dhcp.vpn_icanhazip.table='fw4'
+set dhcp.vpn_icanhazip.table_family='inet'
+EOF
+fi
+uci commit dhcp
 
 if [ -n "$WDNS" ]; then
     uci -q delete dhcp.wdns.dhcp_option || true
@@ -245,9 +256,6 @@ download_domains() {
         rm -f "\$temporary"
         logger -t getdomains "domain list download through tun0 failed"
         return 1
-    fi
-    if [ '$ADD_IP_CHECK_DOMAIN' -eq 1 ]; then
-        printf '\n%s\n' 'nftset=/icanhazip.com/4#inet#fw4#vpn_domains' >> "\$temporary"
     fi
     if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
         rm -f "\$temporary"

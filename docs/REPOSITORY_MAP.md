@@ -42,7 +42,9 @@ files only; there is no pre-firewall4 ipset branch.
 2. `getdomains` serializes refreshes with a lock, downloads lists to temporary
    files, validates the domain list, and atomically replaces only valid data.
 3. dnsmasq resolves selected domains into the `vpn_domains` nft set; firewall4
-   loads the file-backed network sets.
+   loads the file-backed network sets. The optional `icanhazip.com` mapping is
+   stored as the named `dhcp.vpn_icanhazip` UCI section instead of being
+   appended to the downloaded runtime list, so LuCI can display it.
 4. The raw `tun0` device is registered as the unmanaged netifd interface
    `singbox_tun`. The firewall keeps unsolicited TUN input and new forwarding
    rejected. The sing-box system TUN stack creates new TCP client flows that are

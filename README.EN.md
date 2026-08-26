@@ -26,7 +26,10 @@ wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domai
 ```
 
 By default, the installer adds `icanhazip.com` to the `vpn_domains` set so an
-external-IP check uses the tunnel. To deploy without that domain, pass
+external-IP check uses the tunnel. This mapping is stored as the dedicated
+`vpn_icanhazip` section in `/etc/config/dhcp` and appears under **DNS → IP Sets**
+in LuCI; the installer does not append it to the downloaded
+`/tmp/dnsmasq.d/domains.lst` file. To deploy without that domain, pass
 `--no-icanhazip`:
 
 ```sh
@@ -82,7 +85,7 @@ getdomains_max_time: 120       # seconds per download attempt
 getdomains_retries: 5
 getdomains_ready_timeout: 30     # wait for the interface and DNS, seconds
 getdomains_download_interface: tun0 # interface used to download lists
-add_icanhazip_domain: true          # add icanhazip.com to vpn_domains
+add_icanhazip_domain: true          # add the icanhazip.com-to-vpn_domains UCI mapping
 ```
 
 Example:
