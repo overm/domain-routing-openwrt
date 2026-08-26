@@ -27,6 +27,14 @@
       - getdomains_download_interface is match('^[A-Za-z0-9_.:-]+$')
     fail_msg: "Invalid country or getdomains download settings."
 
+- name: Validate the tunnel DNS address
+  assert:
+    that:
+      - >-
+        wdns == false or
+        (wdns | string) is match('^((0|[1-9][0-9]?|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}(0|[1-9][0-9]?|1[0-9]{2}|2[0-4][0-9]|25[0-5])$')
+    fail_msg: "wdns must be false or a valid IPv4 DNS server address."
+
 - name: Refresh apk indexes
   command: apk update
   changed_when: false
@@ -50,6 +58,25 @@
     key: dhcp.@dnsmasq[0]
     value:
       confdir: /tmp/dnsmasq.d
+  notify: Restart dnsmasq
+
+- name: Configure the wdns DHCP tag
+  uci:
+    command: section
+    config: dhcp
+    type: tag
+    name: wdns
+    value:
+      dhcp_option:
+        - "6,{{ wdns }}"
+  when: wdns != false
+  notify: Restart dnsmasq
+
+- name: Remove the wdns DHCP tag when disabled
+  uci:
+    command: absent
+    key: dhcp.wdns
+  when: wdns == false
   notify: Restart dnsmasq
 
 - name: Install getdomains init script

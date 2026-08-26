@@ -20,7 +20,7 @@ files only; there is no pre-firewall4 ipset branch.
 
 | Path | Responsibility |
 | --- | --- |
-| `defaults/main.yml` | Public list, country, DNS, editor, and `tunnel: singbox` defaults. |
+| `defaults/main.yml` | Public list, country, DNS, DHCP `wdns` tag, editor, and `tunnel: singbox` defaults. |
 | `tasks/main.yml` | Version guard, apk packages, sing-box TUN routing, nft sets, dnsmasq, and optional encrypted DNS. |
 | `handlers/main.yml` | Deferred OpenWrt service restarts. |
 | `templates/openwrt-getdomains.j2` | Downloads nfset/domain and optional IP lists. |
@@ -57,6 +57,9 @@ files only; there is no pre-firewall4 ipset branch.
    The hotplug script waits for
    the interface for at most ten seconds and fails without changing the route
    when the interface never appears.
+7. When configured, the optional `wdns` dnsmasq tag advertises its
+   tunnel-reachable IPv4 DNS server (DHCP option 6) to static leases carrying
+   that tag.
 
 Runtime paths such as `/etc/init.d/getdomains`, `/tmp/dnsmasq.d`, `/tmp/lst`,
 `/etc/sing-box/config.json`, and UCI files are target-router files and must not

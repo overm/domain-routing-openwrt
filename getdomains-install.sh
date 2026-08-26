@@ -6,18 +6,44 @@ green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
 ADD_IP_CHECK_DOMAIN=1
-case ${1:-} in
-    '') ;;
-    --no-icanhazip) ADD_IP_CHECK_DOMAIN=0 ;;
-    -h|--help)
-        printf 'Usage: %s [--no-icanhazip]\n' "$0"
-        exit 0
-        ;;
-    *)
-        red "Usage: $0 [--no-icanhazip]"
-        exit 2
-        ;;
-esac
+WDNS=
+usage() {
+    printf 'Usage: %s [--no-icanhazip] [--wdns DNS_IPV4]\n' "$0"
+}
+valid_ipv4() {
+    printf '%s\n' "$1" | awk -F. '
+        NF != 4 { exit 1 }
+        {
+            for (i = 1; i <= 4; i++)
+                if ($i !~ /^[0-9]+$/ || $i < 0 || $i > 255 ||
+                    (length($i) > 1 && substr($i, 1, 1) == "0")) exit 1
+        }
+    '
+}
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        --no-icanhazip) ADD_IP_CHECK_DOMAIN=0 ;;
+        --wdns)
+            [ "$#" -ge 2 ] || { red "--wdns requires an IPv4 address"; usage >&2; exit 2; }
+            WDNS=$2
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            red "Unknown option: $1"
+            usage >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
+if [ -n "$WDNS" ] && ! valid_ipv4 "$WDNS"; then
+    red "Invalid IPv4 DNS address: $WDNS"
+    exit 2
+fi
 
 . /etc/os-release
 VERSION_MAJOR=${VERSION_ID%%.*}
@@ -145,6 +171,15 @@ commit network
 commit firewall
 commit dhcp
 EOF
+
+if [ -n "$WDNS" ]; then
+    uci -q batch <<EOF
+set dhcp.wdns=tag
+delete dhcp.wdns.dhcp_option
+add_list dhcp.wdns.dhcp_option='6,$WDNS'
+commit dhcp
+EOF
+fi
 
 grep -q '^99[[:space:]]\+vpn$' /etc/iproute2/rt_tables 2>/dev/null || echo '99 vpn' >> /etc/iproute2/rt_tables
 cat > /etc/hotplug.d/iface/30-vpnroute <<'EOF'
