@@ -15,15 +15,26 @@ been removed.
 The launch command downloads the script with BusyBox's bundled `wget`. The
 standalone installer checks the OpenWrt major version and the presence of `apk`
 before changing the device. It installs `curl`, `sing-box`, `dnsmasq-full`,
-`ip-full`, and `nano`, saves the diagnostics and removal
-commands in `/usr/bin`, creates the `tun0` firewall/routing configuration, and
-preserves an existing `/etc/sing-box/config.json`. At the end of installation,
-the script offers to open that configuration in `nano` immediately, validates
-it, and restarts sing-box after applying the network configuration.
+`ip-full`, and `nano`, creates the `tun0` firewall/routing configuration, saves
+the diagnostics and removal commands in `/usr/bin`, and preserves an existing
+`/etc/sing-box/config.json`. At the end of installation, the script offers to
+open that configuration in `nano`, validates it, and, if it is valid, restarts
+sing-box after applying the network configuration.
+
+Only the standalone installer is supported; the Ansible role has been removed.
+
+## Installation
 
 ```sh
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
+
+During installation, select one domain list: **Russia inside** (the default),
+**Russia outside**, or **Ukraine**.
+
+### Additional options
+
+#### `--no-icanhazip`
 
 By default, the installer adds `icanhazip.com` to the `vpn_domains` set so an
 external-IP check uses the tunnel. The `mark_local_domains` rule marks matching
@@ -38,6 +49,8 @@ in LuCI; the installer does not append it to the downloaded
 ```sh
 sh /tmp/getdomains-install.sh --no-icanhazip
 ```
+
+#### `--wdns`
 
 The `--wdns DNS_IPV4` option creates the `wdns` DHCP tag and assigns a DNS
 server reachable through the tunnel to that tag. For example:
@@ -54,20 +67,79 @@ for the static lease in LuCI):
 list tag 'wdns'
 ```
 
-The generated sing-box file contains `CHANGE_ME` placeholders. Edit it and
-validate it before starting the service:
+## Diagnostics
 
 ```sh
+getdomains-check --lang=en
+```
+
+## Removal
+
+```sh
+getdomains-uninstall
+```
+
+The uninstaller removes policy-routing artifacts but deliberately keeps the
+sing-box package and configuration. The installer downloads both commands so
+they remain available locally after `/tmp` is cleared; uninstalling removes the
+commands as well.
+
+## sing-box configuration
+
+If `/etc/sing-box/config.json` does not exist, the installer creates a
+Shadowsocks template containing `CHANGE_ME` parameters. Fill them in during
+installation: if the configuration is invalid, sing-box will not be restarted
+and the initial list download will be skipped. An existing configuration is not
+overwritten.
+
+You can edit and validate the configuration later with these commands:
+
+```sh
+nano /etc/sing-box/config.json
 sing-box check -c /etc/sing-box/config.json
 service sing-box restart
+```
+
+The following is a separate basic example that uses the router's primary
+connection as its outbound. It is not the template created by the installer.
+You can use it as a starting point and adapt the `outbounds` block.
+
+```json
+{
+  "log": {
+    "level": "warning"
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "tun0",
+      "address": [
+        "172.16.250.1/30"
+      ],
+      "auto_route": false,
+      "stack": "system"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "direct",
+      "tag": "direct-out"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "direct-out"
+  }
+}
 ```
 
 Keep `route.auto_detect_interface: true` in a TUN configuration, or configure
 the equivalent global `route.default_interface`. Using
 `outbound.bind_interface` is safe only when every outbound that can carry TUN
 traffic is bound; the diagnostic conservatively requires it on every outbound.
-Without that binding, traffic can loop back into `tun0`. The installer preserves
-an existing JSON file, so verify this setting in custom configurations as well.
+Without one of these mechanisms, traffic can loop back into `tun0`. Verify this
+setting in custom configurations as well.
 
 ## List refreshes
 
@@ -93,18 +165,6 @@ network settings are applied does not cause an immediate failure. The list
 source must be reachable through the configured tunnel. Configure and start
 sing-box before the first refresh. If the installer cannot complete the initial
 download, run `/etc/init.d/getdomains start` manually after the tunnel starts.
-
-## Diagnostics and removal
-
-```sh
-getdomains-check --lang=en
-getdomains-uninstall
-```
-
-The uninstaller removes policy-routing artifacts but deliberately keeps the
-sing-box package and configuration. The installer downloads both commands so
-they remain available locally after `/tmp` is cleared; uninstalling removes the
-commands as well.
 
 ## License
 
