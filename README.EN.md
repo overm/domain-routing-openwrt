@@ -32,15 +32,21 @@ wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domai
 During installation, select one domain list: **Russia inside** (the default),
 **Russia outside**, or **Ukraine**.
 
+Without additional flags, IPv4 traffic for selected domains uses the tunnel
+but may continue through the direct route if the route through `tun0`
+disappears. IPv6 is not routed into the tunnel and is also allowed directly.
+This is the fail-open mode.
+
 ### Additional options
 
 #### `--no-icanhazip`
 
 By default, the installer adds `icanhazip.com` to the `vpn_domains` set so an
-external-IP check uses the tunnel. The `mark_local_domains` rule marks matching
-router-local traffic in `mangle_output`, so `curl icanhazip.com` and
-`curl --interface tun0 icanhazip.com` use the same tunnel route. This mapping is
-stored as the dedicated
+external IPv4 check uses the tunnel. The `mark_local_domains` rule marks
+matching router-local traffic in `mangle_output`; use `curl -4 icanhazip.com`
+for an unambiguous check. Without `-4`, curl may select IPv6, which is allowed
+directly by default. With `--ipv6-deny`, the domain is also added to
+`vpn_domains6`. This mapping is stored as the dedicated
 `vpn_icanhazip` section in `/etc/config/dhcp` and appears under **DNS → IP Sets**
 in LuCI; the installer does not append it to the downloaded
 `/tmp/dnsmasq.d/domains.lst` file. To deploy without that domain, pass
@@ -49,6 +55,49 @@ in LuCI; the installer does not append it to the downloaded
 ```sh
 sh /tmp/getdomains-install.sh --no-icanhazip
 ```
+
+#### `--ipv6-deny`
+
+By default, AAAA answers for selected domains are allowed directly over IPv6.
+The `--ipv6-deny` option creates a `vpn_domains6` set; dnsmasq puts AAAA answers
+in it and the firewall rejects new matching connections from LAN clients and
+the router itself. `REJECT` returns an error immediately, so an IPv4-capable
+client can normally try an A address quickly. A domain without working IPv4
+will remain unreachable:
+
+```sh
+sh /tmp/getdomains-install.sh --ipv6-deny
+```
+
+#### `--kill-switch`
+
+By default, if the `vpn` table has no route, policy-rule processing continues
+and marked IPv4 traffic can use the main route. The `--kill-switch` option adds
+a following `unreachable` rule for mark `0x1`: priority 100 first looks up the
+`vpn` table, then priority 110 denies direct IPv4 if no route was found.
+
+```sh
+sh /tmp/getdomains-install.sh --kill-switch
+```
+
+This is not a health check. If `tun0` and its route still exist while the remote
+proxy is unresponsive, traffic may stall inside the tunnel; there is no
+automatic switch or block based on proxy health. `--kill-switch` alone does not
+deny IPv6. To deny both direct paths, combine the options:
+
+```sh
+sh /tmp/getdomains-install.sh --kill-switch --ipv6-deny
+```
+
+| Options | IPv4 when the `vpn` route is absent | Selected-domain IPv6 |
+| --- | --- | --- |
+| no flags | direct | direct |
+| `--kill-switch` | denied | direct |
+| `--ipv6-deny` | direct | denied |
+| both flags | denied | denied |
+
+Rerunning the installer applies the requested mode; omitting `--kill-switch`
+or `--ipv6-deny` removes the rules previously created for that option.
 
 #### `--wdns`
 
@@ -143,12 +192,27 @@ setting in custom configurations as well.
 
 ## List refreshes
 
-List refreshes are transactional: data is downloaded to a temporary file,
-domain syntax is checked by dnsmasq, and the active file is replaced only after
-successful validation. A lock prevents overlapping cron/manual refreshes, the
-previous list remains active after a network or validation failure, and
-services restart only when a list actually changes. The refresh runs daily at
-04:00 and downloads the list through `tun0`.
+List refreshes are transactional: data is downloaded to a temporary file, its
+size, expected format, and dnsmasq syntax are validated, and the active file is
+replaced only after successful validation. With `--ipv6-deny`, processing adds
+the `vpn_domains6` set to every entry. A lock prevents overlapping cron/manual
+refreshes, the previous list remains active after a network or validation
+failure, and services restart only when a list actually changes. The refresh
+runs daily at 04:00 and downloads the list through `tun0`.
+
+Domain addresses deliberately live only in memory: the active file is
+`/tmp/dnsmasq.d/domains.lst`, while IPv4/IPv6 addresses are nft set elements.
+After a reboot, they return only after the list is downloaded and names are
+queried through the local dnsmasq. Until then, an address cached by a client may
+not be covered by `--kill-switch` or `--ipv6-deny`. A shared CDN creates the
+opposite risk: one address can serve several names, so adding it because of a
+listed domain also affects an unlisted domain. When the `vpn` route is absent,
+the kill switch blocks such a shared IPv4 address; `--ipv6-deny` similarly
+rejects a shared IPv6 address.
+
+Rules cover only addresses learned when the local dnsmasq resolves a name.
+External DNS, DNS over HTTPS, and direct IP connections do not populate the
+sets and can bypass the domain policy.
 
 The device is registered with netifd as the unmanaged logical interface
 `singbox_tun`. A separate policy rule sends the router-local `curl` socket bound
