@@ -7,9 +7,11 @@ red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
 ADD_IP_CHECK_DOMAIN=1
 ICANHAZIP_MAPPING_CHANGED=0
+IPV6_DENY=0
+KILL_SWITCH=0
 WDNS=
 usage() {
-    printf 'Usage: %s [--no-icanhazip] [--wdns DNS_IPV4]\n' "$0"
+    printf 'Usage: %s [--no-icanhazip] [--ipv6-deny] [--kill-switch] [--wdns DNS_IPV4]\n' "$0"
 }
 valid_ipv4() {
     printf '%s\n' "$1" | awk -F. '
@@ -24,6 +26,8 @@ valid_ipv4() {
 while [ "$#" -gt 0 ]; do
     case $1 in
         --no-icanhazip) ADD_IP_CHECK_DOMAIN=0 ;;
+        --ipv6-deny) IPV6_DENY=1 ;;
+        --kill-switch) KILL_SWITCH=1 ;;
         --wdns)
             [ "$#" -ge 2 ] || { red "--wdns requires an IPv4 address"; usage >&2; exit 2; }
             WDNS=$2
@@ -112,6 +116,11 @@ EOF
     green "Created /etc/sing-box/config.json; edit the CHANGE_ME values before starting sing-box."
 fi
 
+uci -q delete network.domain_kill_switch || true
+uci -q delete firewall.vpn_domains6 || true
+uci -q delete firewall.block_domains6 || true
+uci -q delete firewall.block_local_domains6 || true
+
 uci -q batch <<'EOF'
 set sing-box.main=sing-box
 set sing-box.main.enabled='1'
@@ -157,6 +166,7 @@ set firewall.lan_singbox.family='ipv4'
 set firewall.vpn_domains=ipset
 set firewall.vpn_domains.name='vpn_domains'
 set firewall.vpn_domains.match='dst_net'
+set firewall.vpn_domains.family='ipv4'
 set firewall.mark_domains=rule
 set firewall.mark_domains.name='mark_domains'
 set firewall.mark_domains.src='lan'
@@ -180,9 +190,49 @@ commit network
 commit firewall
 EOF
 
+if [ "$KILL_SWITCH" -eq 1 ]; then
+    uci -q batch <<'EOF'
+set network.domain_kill_switch=rule
+set network.domain_kill_switch.name='domain_kill_switch'
+set network.domain_kill_switch.mark='0x1'
+set network.domain_kill_switch.priority='110'
+set network.domain_kill_switch.action='unreachable'
+commit network
+EOF
+fi
+
+if [ "$IPV6_DENY" -eq 1 ]; then
+    uci -q batch <<'EOF'
+set firewall.vpn_domains6=ipset
+set firewall.vpn_domains6.name='vpn_domains6'
+set firewall.vpn_domains6.match='dst_net'
+set firewall.vpn_domains6.family='ipv6'
+set firewall.block_domains6=rule
+set firewall.block_domains6.name='Reject selected domains over IPv6'
+set firewall.block_domains6.src='lan'
+set firewall.block_domains6.dest='*'
+set firewall.block_domains6.proto='all'
+set firewall.block_domains6.ipset='vpn_domains6'
+set firewall.block_domains6.target='REJECT'
+set firewall.block_domains6.family='ipv6'
+set firewall.block_local_domains6=rule
+set firewall.block_local_domains6.name='Reject router-local selected domains over IPv6'
+set firewall.block_local_domains6.dest='*'
+set firewall.block_local_domains6.proto='all'
+set firewall.block_local_domains6.ipset='vpn_domains6'
+set firewall.block_local_domains6.target='REJECT'
+set firewall.block_local_domains6.family='ipv6'
+commit firewall
+EOF
+fi
+
+EXPECTED_IP_CHECK_SETS=vpn_domains
+if [ "$IPV6_DENY" -eq 1 ]; then
+    EXPECTED_IP_CHECK_SETS='vpn_domains vpn_domains6'
+fi
 if [ "$ADD_IP_CHECK_DOMAIN" -eq 1 ]; then
     if [ "$(uci -q get dhcp.vpn_icanhazip)" != ipset ] ||
-        [ "$(uci -q get dhcp.vpn_icanhazip.name)" != vpn_domains ] ||
+        [ "$(uci -q get dhcp.vpn_icanhazip.name)" != "$EXPECTED_IP_CHECK_SETS" ] ||
         [ "$(uci -q get dhcp.vpn_icanhazip.domain)" != icanhazip.com ] ||
         [ "$(uci -q get dhcp.vpn_icanhazip.table)" != fw4 ] ||
         [ "$(uci -q get dhcp.vpn_icanhazip.table_family)" != inet ]; then
@@ -195,6 +245,9 @@ add_list dhcp.vpn_icanhazip.domain='icanhazip.com'
 set dhcp.vpn_icanhazip.table='fw4'
 set dhcp.vpn_icanhazip.table_family='inet'
 EOF
+        if [ "$IPV6_DENY" -eq 1 ]; then
+            uci add_list dhcp.vpn_icanhazip.name='vpn_domains6'
+        fi
     fi
 elif uci -q get dhcp.vpn_icanhazip >/dev/null; then
     ICANHAZIP_MAPPING_CHANGED=1
@@ -241,6 +294,11 @@ case ${COUNTRY:-1} in
     *) red "Unknown selection"; exit 1 ;;
 esac
 
+DOMAIN_SET_TARGET='4#inet#fw4#vpn_domains'
+if [ "$IPV6_DENY" -eq 1 ]; then
+    DOMAIN_SET_TARGET='4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6'
+fi
+
 cat > /etc/init.d/getdomains <<EOF
 #!/bin/sh /etc/rc.common
 START=99
@@ -266,17 +324,42 @@ wait_for_download_path() {
 
 download_domains() {
     destination=/tmp/dnsmasq.d/domains.lst
+    downloaded="\${destination}.download.\$\$"
     temporary="\${destination}.tmp.\$\$"
+    target='$DOMAIN_SET_TARGET'
 
-    rm -f "\$temporary"
+    rm -f "\$downloaded" "\$temporary"
     wait_for_download_path '$DOMAINS_URL' || return 1
     if ! curl -fL --interface tun0 --connect-timeout 10 --max-time 120 --retry 5 \\
-        --retry-delay 2 '$DOMAINS_URL' -o "\$temporary"; then
-        rm -f "\$temporary"
+        --retry-delay 2 --max-filesize 2097152 '$DOMAINS_URL' -o "\$downloaded"; then
+        rm -f "\$downloaded" "\$temporary"
         logger -t getdomains "domain list download through tun0 failed"
         return 1
     fi
-    if [ ! -s "\$temporary" ] || ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
+    if [ ! -s "\$downloaded" ] ||
+        [ "\$(wc -c < "\$downloaded")" -gt 2097152 ]; then
+        rm -f "\$downloaded" "\$temporary"
+        logger -t getdomains "downloaded domain list is empty or too large"
+        return 1
+    fi
+    if ! awk -v target="\$target" '
+        BEGIN { count = 0 }
+        /^nftset=\/[A-Za-z0-9_.-]+\/4#inet#fw4#vpn_domains\$/ {
+            sub(/4#inet#fw4#vpn_domains\$/, target)
+            print
+            count++
+            if (count > 20000) exit 2
+            next
+        }
+        { exit 1 }
+        END { if (count == 0) exit 1 }
+    ' "\$downloaded" > "\$temporary"; then
+        rm -f "\$downloaded" "\$temporary"
+        logger -t getdomains "downloaded domain list has an unexpected format"
+        return 1
+    fi
+    rm -f "\$downloaded"
+    if ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
         rm -f "\$temporary"
         logger -t getdomains "downloaded domain list failed validation"
         return 1
@@ -296,7 +379,8 @@ start() {
     fi
     cleanup() {
         rm -rf "\$lock"
-        rm -f /tmp/dnsmasq.d/domains.lst.tmp.\$\$
+        rm -f /tmp/dnsmasq.d/domains.lst.download.\$\$ \\
+            /tmp/dnsmasq.d/domains.lst.tmp.\$\$
     }
     trap cleanup 0
     trap 'exit 1' HUP INT TERM
@@ -323,11 +407,11 @@ esac
 # Apply netifd and firewall changes before starting sing-box. Reloading the
 # network after sing-box has created tun0 can leave the service needing another
 # manual restart before the edited configuration takes effect.
+/etc/init.d/network reload
 /etc/init.d/firewall restart
 if [ "$ICANHAZIP_MAPPING_CHANGED" -eq 1 ]; then
     /etc/init.d/dnsmasq restart
 fi
-/etc/init.d/network reload
 
 SINGBOX_STARTED=0
 if sing-box check -c /etc/sing-box/config.json; then

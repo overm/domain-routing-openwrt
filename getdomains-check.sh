@@ -20,7 +20,15 @@ if [ "$LANGUAGE" = en ]; then
     BAD_ROUTE="vpn table has no default route through tun0"
     BAD_TUN_INTERFACE="netifd interface singbox_tun is missing"
     BAD_DOWNLOAD_RULE="locally bound tun0 traffic does not use the vpn table"
+    BAD_MARK_RULE="marked IPv4 traffic does not use the vpn table at priority 100"
+    BAD_KILL_SWITCH="IPv4 kill switch configuration is incomplete or inactive"
+    KILL_SWITCH_ON="IPv4 kill switch enabled"
+    KILL_SWITCH_OFF="direct IPv4 fallback enabled"
     BAD_LOCAL_DOMAIN_RULE="router-local vpn_domains traffic is not marked"
+    BAD_IPV6_DENY="IPv6 deny configuration is incomplete or inactive"
+    IPV6_DENY_ON="direct IPv6 access to selected domains rejected"
+    IPV6_DENY_OFF="direct IPv6 fallback enabled"
+    BAD_DOMAIN_LIST="runtime domain list is missing or does not match the configured IP families"
     BAD_TUN_INPUT="firewall accepts unsolicited input from tun0"
     BAD_TUN_REPLY_RULE="narrow firewall rule for sing-box TUN client flows is missing"
 else
@@ -32,7 +40,15 @@ else
     BAD_ROUTE="в таблице vpn нет маршрута по умолчанию через tun0"
     BAD_TUN_INTERFACE="интерфейс netifd singbox_tun отсутствует"
     BAD_DOWNLOAD_RULE="локальный трафик, привязанный к tun0, не направляется в таблицу vpn"
+    BAD_MARK_RULE="маркированный IPv4-трафик не направляется в таблицу vpn с приоритетом 100"
+    BAD_KILL_SWITCH="IPv4 kill switch настроен не полностью или не активен"
+    KILL_SWITCH_ON="IPv4 kill switch включён"
+    KILL_SWITCH_OFF="прямой резервный маршрут IPv4 разрешён"
     BAD_LOCAL_DOMAIN_RULE="локальный трафик роутера к vpn_domains не маркируется"
+    BAD_IPV6_DENY="блокировка прямого IPv6 настроена не полностью или не активна"
+    IPV6_DENY_ON="прямой IPv6 к выбранным доменам отклоняется"
+    IPV6_DENY_OFF="прямой резервный маршрут IPv6 разрешён"
+    BAD_DOMAIN_LIST="рабочий доменный список отсутствует или не соответствует настроенным семействам IP"
     BAD_TUN_INPUT="firewall принимает незапрошенный входящий трафик из tun0"
     BAD_TUN_REPLY_RULE="отсутствует узкое правило firewall для клиентских соединений sing-box TUN"
 fi
@@ -45,6 +61,38 @@ all_outbounds_bound() {
     outbound_count=$(printf '%s\n' "$outbound_types" | wc -l)
     bound_count=$(printf '%s\n' "$bound_interfaces" | wc -l)
     [ "$outbound_count" -eq "$bound_count" ]
+}
+
+ipv6_deny_config_valid() {
+    [ "$(uci -q get firewall.vpn_domains6)" = ipset ] &&
+        [ "$(uci -q get firewall.vpn_domains6.name)" = vpn_domains6 ] &&
+        [ "$(uci -q get firewall.vpn_domains6.match)" = dst_net ] &&
+        [ "$(uci -q get firewall.vpn_domains6.family)" = ipv6 ] &&
+        [ "$(uci -q get firewall.block_domains6.src)" = lan ] &&
+        [ "$(uci -q get firewall.block_domains6.ipset)" = vpn_domains6 ] &&
+        [ "$(uci -q get firewall.block_domains6.target)" = REJECT ] &&
+        [ "$(uci -q get firewall.block_domains6.family)" = ipv6 ] &&
+        [ -z "$(uci -q get firewall.block_local_domains6.src)" ] &&
+        [ "$(uci -q get firewall.block_local_domains6.ipset)" = vpn_domains6 ] &&
+        [ "$(uci -q get firewall.block_local_domains6.target)" = REJECT ] &&
+        [ "$(uci -q get firewall.block_local_domains6.family)" = ipv6 ]
+}
+
+ipv6_deny_runtime_valid() {
+    nft list set inet fw4 vpn_domains6 >/dev/null 2>&1 &&
+        nft list ruleset 2>/dev/null | grep -q 'Reject selected domains over IPv6' &&
+        nft list ruleset 2>/dev/null | grep -q 'Reject router-local selected domains over IPv6'
+}
+
+domain_list_matches_mode() {
+    domain_file=/tmp/dnsmasq.d/domains.lst
+    [ -s "$domain_file" ] || return 1
+    if [ "$IPV6_DENY_ENABLED" -eq 1 ]; then
+        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6$'
+    else
+        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains$'
+    fi
+    ! grep -Ev "$pattern" "$domain_file" >/dev/null 2>&1
 }
 
 . /etc/os-release
@@ -83,6 +131,30 @@ else
     fail "$BAD_TUN_INTERFACE"
 fi
 if ip rule show 2>/dev/null | grep -q 'oif tun0.*lookup vpn'; then ok "tun0 download rule"; else fail "$BAD_DOWNLOAD_RULE"; fi
+if [ "$(uci -q get network.mark0x1.mark)" = 0x1 ] &&
+    [ "$(uci -q get network.mark0x1.priority)" = 100 ] &&
+    [ "$(uci -q get network.mark0x1.lookup)" = vpn ] &&
+    ip rule show 2>/dev/null | grep -q '100:.*fwmark 0x1.*lookup vpn'; then
+    ok "marked IPv4 policy rule"
+else
+    fail "$BAD_MARK_RULE"
+fi
+if uci -q get network.domain_kill_switch >/dev/null; then
+    if [ "$(uci -q get network.domain_kill_switch)" = rule ] &&
+        [ "$(uci -q get network.domain_kill_switch.mark)" = 0x1 ] &&
+        [ "$(uci -q get network.domain_kill_switch.priority)" = 110 ] &&
+        [ "$(uci -q get network.domain_kill_switch.action)" = unreachable ] &&
+        [ -z "$(uci -q get network.domain_kill_switch.lookup)" ] &&
+        ip rule show 2>/dev/null | grep -q '110:.*fwmark 0x1.*unreachable'; then
+        ok "$KILL_SWITCH_ON"
+    else
+        fail "$BAD_KILL_SWITCH"
+    fi
+elif ip rule show 2>/dev/null | grep -q 'fwmark 0x1.*unreachable'; then
+    fail "$BAD_KILL_SWITCH"
+else
+    ok "$KILL_SWITCH_OFF"
+fi
 if [ "$(uci -q get firewall.mark_local_domains.dest)" = '*' ] &&
     [ "$(uci -q get firewall.mark_local_domains.ipset)" = vpn_domains ] &&
     [ "$(uci -q get firewall.mark_local_domains.set_mark)" = 0x1 ] &&
@@ -92,6 +164,29 @@ if [ "$(uci -q get firewall.mark_local_domains.dest)" = '*' ] &&
     ok "router-local vpn_domains marking"
 else
     fail "$BAD_LOCAL_DOMAIN_RULE"
+fi
+IPV6_DENY_ENABLED=0
+for section in vpn_domains6 block_domains6 block_local_domains6; do
+    if uci -q get "firewall.$section" >/dev/null; then
+        IPV6_DENY_ENABLED=1
+    fi
+done
+if [ "$IPV6_DENY_ENABLED" -eq 1 ]; then
+    if ipv6_deny_config_valid && ipv6_deny_runtime_valid; then
+        ok "$IPV6_DENY_ON"
+    else
+        fail "$BAD_IPV6_DENY"
+    fi
+elif nft list set inet fw4 vpn_domains6 >/dev/null 2>&1 ||
+    nft list ruleset 2>/dev/null | grep -q 'selected domains over IPv6'; then
+    fail "$BAD_IPV6_DENY"
+else
+    ok "$IPV6_DENY_OFF"
+fi
+if domain_list_matches_mode; then
+    ok "runtime domain list"
+else
+    fail "$BAD_DOMAIN_LIST"
 fi
 if nft list chain inet fw4 input_tun 2>/dev/null |
     grep -q 'jump reject_from_tun'; then

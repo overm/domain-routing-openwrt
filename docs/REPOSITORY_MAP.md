@@ -7,6 +7,12 @@ sing-box with a `tun0` inbound. Matching IPv4 destinations receive firewall
 mark `0x1`; an OpenWrt policy rule sends that mark to routing table `vpn` (99),
 whose default route uses `tun0`.
 
+The default behavior is fail-open: if the `vpn` table has no matching route,
+IPv4 policy processing continues to the main table, and IPv6 remains direct.
+The optional `--kill-switch` adds a later `unreachable` rule for marked IPv4;
+the independent `--ipv6-deny` mode rejects IPv6 addresses learned for selected
+domains. Neither option performs tunnel or proxy health checks.
+
 Installation and maintenance use the standalone BusyBox-shell scripts in the
 repository root. The installer uses OpenWrt 25's `apk` package manager. `apt` is
 not an OpenWrt package manager. The project uses firewall4/nftables sets and
@@ -28,8 +34,11 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    implementation is required for the `oif tun0` policy rule used by router-local
    downloads.
 2. `getdomains` serializes refreshes with a lock, downloads the domain list to a
-   temporary file, validates it, and atomically replaces only valid data.
-3. dnsmasq resolves selected domains into the `vpn_domains` nft set. The optional
+   temporary file, enforces its size and expected format, validates it, and
+   atomically replaces only valid data. In `--ipv6-deny` mode it converts each
+   entry to populate both the IPv4 and IPv6 sets.
+3. dnsmasq resolves selected domains into the `vpn_domains` nft set and, with
+   `--ipv6-deny`, AAAA answers into the `vpn_domains6` nft set. The optional
    `icanhazip.com` mapping is stored as the named `dhcp.vpn_icanhazip` UCI
    section instead of being appended to the downloaded runtime list, so LuCI
    can display it.
@@ -42,21 +51,29 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 5. firewall MARK rules apply mark `0x1` to matching LAN traffic. A separate
    `mangle_output` rule applies the same mark to router-local IPv4 traffic whose
    destination is in `vpn_domains`.
-6. the network policy rules send marked LAN and router-local packets, as well as
+6. The network policy rules send marked LAN and router-local packets, as well as
    router-local downloads bound to `tun0`, to table `vpn`. The output-interface
    rule refers to the logical `singbox_tun` interface so netifd can resolve it
    to the `tun0` device,
    and the hotplug script keeps the table's default route pointed at `tun0`.
-   The hotplug script waits for
+   With `--kill-switch`, a second marked rule returns `unreachable` only if the
+   preceding `vpn` lookup found no route. The hotplug script waits for
    the interface for at most ten seconds and fails without changing the route
    when the interface never appears.
-7. When configured, the optional `wdns` dnsmasq tag advertises its
+7. With `--ipv6-deny`, firewall rules reject matching IPv6 traffic from LAN and
+   from the router itself. Without it, IPv6 remains direct.
+8. When configured, the optional `wdns` dnsmasq tag advertises its
    tunnel-reachable IPv4 DNS server (DHCP option 6) to static leases carrying
    that tag.
 
 Runtime paths such as `/etc/init.d/getdomains`, `/tmp/dnsmasq.d`, `/tmp/lst`,
 `/etc/sing-box/config.json`, and UCI files are target-router files and must not
 be added to this repository.
+
+The runtime domain file and nft set elements are RAM-only. Client-cached
+addresses can bypass the policy after reboot until dnsmasq sees the query;
+shared CDN addresses can apply policy to unrelated domain names. The mode's UCI
+rules are persistent, but learned domain addresses are not.
 
 ## Safe changes
 
