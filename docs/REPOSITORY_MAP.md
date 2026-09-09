@@ -26,6 +26,8 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 | `getdomains-check.sh` | OpenWrt 25/apk, sing-box TUN loop protection, netifd, routing, firewall, nft set, and dnsmasq diagnostics. |
 | `getdomains-uninstall.sh` | Removes domain-routing artifacts while retaining sing-box. |
 | `README.md`, `README.EN.md` | Russian and English public documentation. |
+| `tests/router-install-matrix.sh` | Destructive OpenWrt integration matrix for installer modes, transitions, routing, dnsmasq, and nftables behavior. |
+| `tests/results/` | Reviewed reports and per-case summaries from named OpenWrt testbeds; raw device logs and credentials are never committed. |
 
 ## Data flow
 
