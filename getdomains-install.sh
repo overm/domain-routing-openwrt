@@ -6,7 +6,6 @@ green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
 ADD_IP_CHECK_DOMAIN=1
-ICANHAZIP_MAPPING_CHANGED=0
 IPV6_DENY=0
 KILL_SWITCH=0
 WDNS=
@@ -88,7 +87,30 @@ for script in getdomains-check getdomains-uninstall; do
     mv -f "$temporary" "/usr/bin/$script"
 done
 
-mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
+mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/getdomains /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
+
+REFRESH_PREROUTING_FILE=/etc/getdomains/refresh-prerouting.nft
+REFRESH_OUTPUT_FILE=/etc/getdomains/refresh-output.nft
+REFRESH_PREROUTING_TEMP="${REFRESH_PREROUTING_FILE}.tmp.$$"
+REFRESH_OUTPUT_TEMP="${REFRESH_OUTPUT_FILE}.tmp.$$"
+
+cat > "$REFRESH_PREROUTING_TEMP" <<'EOF'
+iifname $lan_devices ct state new ip daddr @vpn_domains update @vpn_domains { ip daddr timeout 2d } comment "getdomains: refresh LAN IPv4 domain timeout"
+EOF
+cat > "$REFRESH_OUTPUT_TEMP" <<'EOF'
+ct state new ip daddr @vpn_domains update @vpn_domains { ip daddr timeout 2d } comment "getdomains: refresh router IPv4 domain timeout"
+EOF
+if [ "$IPV6_DENY" -eq 1 ]; then
+    cat >> "$REFRESH_PREROUTING_TEMP" <<'EOF'
+iifname $lan_devices ct state new ip6 daddr @vpn_domains6 update @vpn_domains6 { ip6 daddr timeout 2d } comment "getdomains: refresh LAN IPv6 domain timeout"
+EOF
+    cat >> "$REFRESH_OUTPUT_TEMP" <<'EOF'
+ct state new ip6 daddr @vpn_domains6 update @vpn_domains6 { ip6 daddr timeout 2d } comment "getdomains: refresh router IPv6 domain timeout"
+EOF
+fi
+chmod 0644 "$REFRESH_PREROUTING_TEMP" "$REFRESH_OUTPUT_TEMP"
+mv -f "$REFRESH_PREROUTING_TEMP" "$REFRESH_PREROUTING_FILE"
+mv -f "$REFRESH_OUTPUT_TEMP" "$REFRESH_OUTPUT_FILE"
 
 if [ ! -s /etc/sing-box/config.json ]; then
     cat > /etc/sing-box/config.json <<'EOF'
@@ -120,6 +142,8 @@ uci -q delete network.domain_kill_switch || true
 uci -q delete firewall.vpn_domains6 || true
 uci -q delete firewall.block_domains6 || true
 uci -q delete firewall.block_local_domains6 || true
+uci -q delete firewall.refresh_domains_prerouting || true
+uci -q delete firewall.refresh_domains_output || true
 
 uci -q batch <<'EOF'
 set sing-box.main=sing-box
@@ -165,8 +189,10 @@ set firewall.lan_singbox.dest='tun'
 set firewall.lan_singbox.family='ipv4'
 set firewall.vpn_domains=ipset
 set firewall.vpn_domains.name='vpn_domains'
-set firewall.vpn_domains.match='dst_net'
+set firewall.vpn_domains.match='dst_ip'
 set firewall.vpn_domains.family='ipv4'
+set firewall.vpn_domains.timeout='172800'
+set firewall.vpn_domains.maxelem='65536'
 set firewall.mark_domains=rule
 set firewall.mark_domains.name='mark_domains'
 set firewall.mark_domains.src='lan'
@@ -184,6 +210,16 @@ set firewall.mark_local_domains.ipset='vpn_domains'
 set firewall.mark_local_domains.set_mark='0x1'
 set firewall.mark_local_domains.target='MARK'
 set firewall.mark_local_domains.family='ipv4'
+set firewall.refresh_domains_prerouting=include
+set firewall.refresh_domains_prerouting.type='nftables'
+set firewall.refresh_domains_prerouting.path='/etc/getdomains/refresh-prerouting.nft'
+set firewall.refresh_domains_prerouting.position='chain-prepend'
+set firewall.refresh_domains_prerouting.chain='mangle_prerouting'
+set firewall.refresh_domains_output=include
+set firewall.refresh_domains_output.type='nftables'
+set firewall.refresh_domains_output.path='/etc/getdomains/refresh-output.nft'
+set firewall.refresh_domains_output.position='chain-prepend'
+set firewall.refresh_domains_output.chain='mangle_output'
 set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
 commit sing-box
 commit network
@@ -205,8 +241,10 @@ if [ "$IPV6_DENY" -eq 1 ]; then
     uci -q batch <<'EOF'
 set firewall.vpn_domains6=ipset
 set firewall.vpn_domains6.name='vpn_domains6'
-set firewall.vpn_domains6.match='dst_net'
+set firewall.vpn_domains6.match='dst_ip'
 set firewall.vpn_domains6.family='ipv6'
+set firewall.vpn_domains6.timeout='172800'
+set firewall.vpn_domains6.maxelem='65536'
 set firewall.block_domains6=rule
 set firewall.block_domains6.name='Reject selected domains over IPv6'
 set firewall.block_domains6.src='lan'
@@ -236,7 +274,6 @@ if [ "$ADD_IP_CHECK_DOMAIN" -eq 1 ]; then
         [ "$(uci -q get dhcp.vpn_icanhazip.domain)" != icanhazip.com ] ||
         [ "$(uci -q get dhcp.vpn_icanhazip.table)" != fw4 ] ||
         [ "$(uci -q get dhcp.vpn_icanhazip.table_family)" != inet ]; then
-        ICANHAZIP_MAPPING_CHANGED=1
         uci -q delete dhcp.vpn_icanhazip || true
         uci -q batch <<'EOF'
 set dhcp.vpn_icanhazip=ipset
@@ -250,7 +287,6 @@ EOF
         fi
     fi
 elif uci -q get dhcp.vpn_icanhazip >/dev/null; then
-    ICANHAZIP_MAPPING_CHANGED=1
     uci -q delete dhcp.vpn_icanhazip
 fi
 uci commit dhcp
@@ -409,9 +445,9 @@ esac
 # manual restart before the edited configuration takes effect.
 /etc/init.d/network reload
 /etc/init.d/firewall restart
-if [ "$ICANHAZIP_MAPPING_CHANGED" -eq 1 ]; then
-    /etc/init.d/dnsmasq restart
-fi
+# A firewall restart recreates the in-memory nft sets. Restart dnsmasq as well
+# so cached answers cannot leave the new sets empty until their DNS TTL expires.
+/etc/init.d/dnsmasq restart
 
 SINGBOX_STARTED=0
 if sing-box check -c /etc/sing-box/config.json; then

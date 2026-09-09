@@ -3,12 +3,14 @@
 set -eu
 
 rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/hotplug.d/iface/30-vpnroute \
+    /etc/getdomains/refresh-prerouting.nft /etc/getdomains/refresh-output.nft \
     /usr/bin/getdomains-check /usr/bin/getdomains-uninstall
+rmdir /etc/getdomains 2>/dev/null || true
 sed -i '\|/etc/init.d/getdomains start|d' /etc/crontabs/root
 sed -i '/^[[:space:]]*99[[:space:]]\+vpn$/d' /etc/iproute2/rt_tables
 
 for section in mark0x1 domain_kill_switch tun0_download singbox_tun; do uci -q delete "network.$section" || true; done
-for section in singbox tun_client_flows lan_singbox vpn_domains vpn_domains6 block_domains6 block_local_domains6 vpn_subnets vpn_ip vpn_community mark_domains mark_local_domains mark_subnet mark_ip mark_community; do
+for section in singbox tun_client_flows lan_singbox vpn_domains vpn_domains6 block_domains6 block_local_domains6 refresh_domains_prerouting refresh_domains_output vpn_subnets vpn_ip vpn_community mark_domains mark_local_domains mark_subnet mark_ip mark_community; do
     uci -q delete "firewall.$section" || true
 done
 uci commit network
