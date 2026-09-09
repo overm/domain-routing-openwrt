@@ -25,6 +25,10 @@ if [ "$LANGUAGE" = en ]; then
     KILL_SWITCH_ON="IPv4 kill switch enabled"
     KILL_SWITCH_OFF="direct IPv4 fallback enabled"
     BAD_LOCAL_DOMAIN_RULE="router-local vpn_domains traffic is not marked"
+    BAD_DOMAIN_SET="vpn_domains timeout configuration is incomplete or inactive"
+    DOMAIN_SET_OK="vpn_domains uses a bounded two-day timeout"
+    BAD_TIMEOUT_REFRESH="domain-set timeout refresh rules are incomplete or inactive"
+    TIMEOUT_REFRESH_ON="domain-set timeouts refresh on new matching connections"
     BAD_IPV6_DENY="IPv6 deny configuration is incomplete or inactive"
     IPV6_DENY_ON="direct IPv6 access to selected domains rejected"
     IPV6_DENY_OFF="direct IPv6 fallback enabled"
@@ -45,6 +49,10 @@ else
     KILL_SWITCH_ON="IPv4 kill switch включён"
     KILL_SWITCH_OFF="прямой резервный маршрут IPv4 разрешён"
     BAD_LOCAL_DOMAIN_RULE="локальный трафик роутера к vpn_domains не маркируется"
+    BAD_DOMAIN_SET="настройка timeout для vpn_domains неполна или неактивна"
+    DOMAIN_SET_OK="vpn_domains использует ограниченный двухдневный timeout"
+    BAD_TIMEOUT_REFRESH="правила обновления timeout доменных наборов неполны или неактивны"
+    TIMEOUT_REFRESH_ON="timeout доменных наборов обновляется при новых совпадающих соединениях"
     BAD_IPV6_DENY="блокировка прямого IPv6 настроена не полностью или не активна"
     IPV6_DENY_ON="прямой IPv6 к выбранным доменам отклоняется"
     IPV6_DENY_OFF="прямой резервный маршрут IPv6 разрешён"
@@ -63,11 +71,22 @@ all_outbounds_bound() {
     [ "$outbound_count" -eq "$bound_count" ]
 }
 
+ipv4_domain_set_config_valid() {
+    [ "$(uci -q get firewall.vpn_domains)" = ipset ] &&
+        [ "$(uci -q get firewall.vpn_domains.name)" = vpn_domains ] &&
+        [ "$(uci -q get firewall.vpn_domains.match)" = dst_ip ] &&
+        [ "$(uci -q get firewall.vpn_domains.family)" = ipv4 ] &&
+        [ "$(uci -q get firewall.vpn_domains.timeout)" = 172800 ] &&
+        [ "$(uci -q get firewall.vpn_domains.maxelem)" = 65536 ]
+}
+
 ipv6_deny_config_valid() {
     [ "$(uci -q get firewall.vpn_domains6)" = ipset ] &&
         [ "$(uci -q get firewall.vpn_domains6.name)" = vpn_domains6 ] &&
-        [ "$(uci -q get firewall.vpn_domains6.match)" = dst_net ] &&
+        [ "$(uci -q get firewall.vpn_domains6.match)" = dst_ip ] &&
         [ "$(uci -q get firewall.vpn_domains6.family)" = ipv6 ] &&
+        [ "$(uci -q get firewall.vpn_domains6.timeout)" = 172800 ] &&
+        [ "$(uci -q get firewall.vpn_domains6.maxelem)" = 65536 ] &&
         [ "$(uci -q get firewall.block_domains6.src)" = lan ] &&
         [ "$(uci -q get firewall.block_domains6.ipset)" = vpn_domains6 ] &&
         [ "$(uci -q get firewall.block_domains6.target)" = REJECT ] &&
@@ -76,6 +95,35 @@ ipv6_deny_config_valid() {
         [ "$(uci -q get firewall.block_local_domains6.ipset)" = vpn_domains6 ] &&
         [ "$(uci -q get firewall.block_local_domains6.target)" = REJECT ] &&
         [ "$(uci -q get firewall.block_local_domains6.family)" = ipv6 ]
+}
+
+timeout_refresh_config_valid() {
+    [ "$(uci -q get firewall.refresh_domains_prerouting)" = include ] &&
+        [ "$(uci -q get firewall.refresh_domains_prerouting.type)" = nftables ] &&
+        [ "$(uci -q get firewall.refresh_domains_prerouting.path)" = /etc/getdomains/refresh-prerouting.nft ] &&
+        [ "$(uci -q get firewall.refresh_domains_prerouting.position)" = chain-prepend ] &&
+        [ "$(uci -q get firewall.refresh_domains_prerouting.chain)" = mangle_prerouting ] &&
+        [ "$(uci -q get firewall.refresh_domains_output)" = include ] &&
+        [ "$(uci -q get firewall.refresh_domains_output.type)" = nftables ] &&
+        [ "$(uci -q get firewall.refresh_domains_output.path)" = /etc/getdomains/refresh-output.nft ] &&
+        [ "$(uci -q get firewall.refresh_domains_output.position)" = chain-prepend ] &&
+        [ "$(uci -q get firewall.refresh_domains_output.chain)" = mangle_output ] &&
+        [ -s /etc/getdomains/refresh-prerouting.nft ] &&
+        [ -s /etc/getdomains/refresh-output.nft ]
+}
+
+timeout_refresh_runtime_valid() {
+    nft list chain inet fw4 mangle_prerouting 2>/dev/null |
+        grep -q 'ct state new.*ip daddr @vpn_domains.*update @vpn_domains.*ip daddr timeout 2d.*getdomains: refresh LAN IPv4 domain timeout' || return 1
+    nft list chain inet fw4 mangle_output 2>/dev/null |
+        grep -q 'ct state new.*ip daddr @vpn_domains.*update @vpn_domains.*ip daddr timeout 2d.*getdomains: refresh router IPv4 domain timeout' || return 1
+    if [ "$IPV6_DENY_ENABLED" -eq 1 ]; then
+        nft list chain inet fw4 mangle_prerouting 2>/dev/null |
+            grep -q 'ct state new.*ip6 daddr @vpn_domains6.*update @vpn_domains6.*ip6 daddr timeout 2d.*getdomains: refresh LAN IPv6 domain timeout' || return 1
+        nft list chain inet fw4 mangle_output 2>/dev/null |
+            grep -q 'ct state new.*ip6 daddr @vpn_domains6.*update @vpn_domains6.*ip6 daddr timeout 2d.*getdomains: refresh router IPv6 domain timeout' || return 1
+    fi
+    return 0
 }
 
 ipv6_deny_runtime_valid() {
@@ -165,6 +213,11 @@ if [ "$(uci -q get firewall.mark_local_domains.dest)" = '*' ] &&
 else
     fail "$BAD_LOCAL_DOMAIN_RULE"
 fi
+if ipv4_domain_set_config_valid; then
+    ok "$DOMAIN_SET_OK"
+else
+    fail "$BAD_DOMAIN_SET"
+fi
 IPV6_DENY_ENABLED=0
 for section in vpn_domains6 block_domains6 block_local_domains6; do
     if uci -q get "firewall.$section" >/dev/null; then
@@ -182,6 +235,11 @@ elif nft list set inet fw4 vpn_domains6 >/dev/null 2>&1 ||
     fail "$BAD_IPV6_DENY"
 else
     ok "$IPV6_DENY_OFF"
+fi
+if timeout_refresh_config_valid && timeout_refresh_runtime_valid; then
+    ok "$TIMEOUT_REFRESH_ON"
+else
+    fail "$BAD_TIMEOUT_REFRESH"
 fi
 if domain_list_matches_mode; then
     ok "runtime domain list"
