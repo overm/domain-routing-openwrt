@@ -39,6 +39,8 @@ LAN_TEST_IPV4=192.0.2.1/24
 CLIENT_TEST_IPV4=192.0.2.2/24
 LAN_TEST_IPV6=fd42:6764:74::1/64
 CLIENT_TEST_IPV6=fd42:6764:74::2/64
+LAN_TEST_IPV4_ADDED=0
+LAN_TEST_IPV6_ADDED=0
 
 TOTAL=0
 PASSED=0
@@ -120,8 +122,14 @@ end_case() {
 cleanup_network_fixture() {
     ip netns del "$NETNS" >/dev/null 2>&1 || true
     ip link del "$VETH_HOST" >/dev/null 2>&1 || true
-    ip addr del "$LAN_TEST_IPV4" dev br-lan >/dev/null 2>&1 || true
-    ip -6 addr del "$LAN_TEST_IPV6" dev br-lan >/dev/null 2>&1 || true
+    if [ "$LAN_TEST_IPV4_ADDED" -eq 1 ]; then
+        ip addr del "$LAN_TEST_IPV4" dev br-lan >/dev/null 2>&1 || true
+        LAN_TEST_IPV4_ADDED=0
+    fi
+    if [ "$LAN_TEST_IPV6_ADDED" -eq 1 ]; then
+        ip -6 addr del "$LAN_TEST_IPV6" dev br-lan >/dev/null 2>&1 || true
+        LAN_TEST_IPV6_ADDED=0
+    fi
     ip -6 route del "$TEST_IPV6_OUTPUT/128" dev br-lan >/dev/null 2>&1 || true
 }
 
@@ -285,7 +293,9 @@ test_output_timeout_refresh() {
 setup_network_fixture() {
     cleanup_network_fixture
     ip addr add "$LAN_TEST_IPV4" dev br-lan || return 1
+    LAN_TEST_IPV4_ADDED=1
     ip -6 addr add "$LAN_TEST_IPV6" dev br-lan nodad || return 1
+    LAN_TEST_IPV6_ADDED=1
     ip netns add "$NETNS" || return 1
     ip link add "$VETH_HOST" type veth peer name "$VETH_PEER" || return 1
     ip link set "$VETH_HOST" master br-lan || return 1
@@ -549,10 +559,20 @@ done
 
 begin_case preflight
 . /etc/os-release
-case ${VERSION_ID%%.*} in
-    ''|*[!0-9]*) fail "OpenWrt VERSION_ID has a numeric major version" ;;
-    *) [ "${VERSION_ID%%.*}" -ge 25 ] && pass "OpenWrt major version is supported" || fail "OpenWrt major version is supported" ;;
+openwrt_major=${VERSION_ID%%.*}
+case $openwrt_major in
+    ''|*[!0-9]*)
+        fail "OpenWrt VERSION_ID has a numeric major version"
+        end_case
+        exit 2
+        ;;
 esac
+if [ "$openwrt_major" -lt 25 ]; then
+    fail "OpenWrt major version is supported"
+    end_case
+    exit 2
+fi
+pass "OpenWrt major version is supported"
 for command_name in apk curl dnsmasq ip nft nslookup sha256sum sing-box uci; do
     expect_present "$command_name is available" command -v "$command_name"
 done
