@@ -200,6 +200,16 @@ refreshes, the previous list remains active after a network or validation
 failure, and services restart only when a list actually changes. The refresh
 runs daily at 04:00 and downloads the list through `tun0`.
 
+`vpn_domains` and, when `--ipv6-deny` is enabled, `vpn_domains6` store
+individual IP addresses with a two-day timeout and a 65536-element limit.
+When a new connection from LAN or the router itself uses an address already in
+a set, nftables refreshes its timeout to two days. A membership test precedes
+the `update`, so traffic to an unknown address cannot insert it into the set.
+The `ct state new` condition avoids writing to the set for every packet; unused
+addresses expire automatically. One uninterrupted connection does not extend
+the timeout after its first packet: another connection to the same address must
+start to refresh it.
+
 Domain addresses deliberately live only in memory: the active file is
 `/tmp/dnsmasq.d/domains.lst`, while IPv4/IPv6 addresses are nft set elements.
 After a reboot, they return only after the list is downloaded and names are
@@ -208,11 +218,16 @@ not be covered by `--kill-switch` or `--ipv6-deny`. A shared CDN creates the
 opposite risk: one address can serve several names, so adding it because of a
 listed domain also affects an unlisted domain. When the `vpn` route is absent,
 the kill switch blocks such a shared IPv4 address; `--ipv6-deny` similarly
-rejects a shared IPv6 address.
+rejects a shared IPv6 address. Timeout refresh operates on IP addresses rather
+than names: new connections to a shared CDN address can extend its lifetime
+even when they belong to another domain. A popular shared address can therefore
+remain in a set for longer than two days; with `--ipv6-deny`, repeated rejected
+connection attempts also refresh it.
 
 Rules cover only addresses learned when the local dnsmasq resolves a name.
-External DNS, DNS over HTTPS, and direct IP connections do not populate the
-sets and can bypass the domain policy.
+External DNS, DNS over HTTPS, and direct IP connections do not populate new set
+elements and can bypass the domain policy. Connecting to an address already in
+a set refreshes its timeout.
 
 The device is registered with netifd as the unmanaged logical interface
 `singbox_tun`. A separate policy rule sends the router-local `curl` socket bound

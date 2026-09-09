@@ -41,14 +41,19 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    `--ipv6-deny`, AAAA answers into the `vpn_domains6` nft set. The optional
    `icanhazip.com` mapping is stored as the named `dhcp.vpn_icanhazip` UCI
    section instead of being appended to the downloaded runtime list, so LuCI
-   can display it.
+   can display it. Both sets contain individual addresses, have a two-day
+   timeout and an explicit 65536-element limit.
 4. The raw `tun0` device is registered as the unmanaged netifd interface
    `singbox_tun`. The firewall keeps unsolicited TUN input and new forwarding
    rejected. The sing-box system TUN stack creates new TCP client flows that are
    not yet tracked as established, so a narrow input rule accepts only traffic
    from the TUN peer `172.16.250.2` to the local TUN address and the standard
    ephemeral-port range `32768-60999`.
-5. firewall MARK rules apply mark `0x1` to matching LAN traffic. A separate
+5. nftables include fragments in `mangle_prerouting` and `mangle_output`
+   refresh the two-day timeout when a new LAN or router-local connection uses
+   an address already present in a domain set. The membership test before each
+   `update` prevents unrelated destinations from being inserted. Firewall MARK
+   rules then apply mark `0x1` to matching LAN traffic. A separate
    `mangle_output` rule applies the same mark to router-local IPv4 traffic whose
    destination is in `vpn_domains`.
 6. The network policy rules send marked LAN and router-local packets, as well as
@@ -66,14 +71,16 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    tunnel-reachable IPv4 DNS server (DHCP option 6) to static leases carrying
    that tag.
 
-Runtime paths such as `/etc/init.d/getdomains`, `/tmp/dnsmasq.d`, `/tmp/lst`,
-`/etc/sing-box/config.json`, and UCI files are target-router files and must not
-be added to this repository.
+Runtime paths such as `/etc/init.d/getdomains`, `/etc/getdomains`,
+`/tmp/dnsmasq.d`, `/tmp/lst`, `/etc/sing-box/config.json`, and UCI files are
+target-router files and must not be added to this repository.
 
 The runtime domain file and nft set elements are RAM-only. Client-cached
 addresses can bypass the policy after reboot until dnsmasq sees the query;
 shared CDN addresses can apply policy to unrelated domain names. The mode's UCI
-rules are persistent, but learned domain addresses are not.
+rules are persistent, but learned domain addresses are not. Since timeout
+refresh operates on IP traffic rather than DNS names, traffic to an unrelated
+name on a shared CDN address can keep that address in the set indefinitely.
 
 ## Safe changes
 
