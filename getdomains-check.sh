@@ -21,6 +21,8 @@ if [ "$LANGUAGE" = en ]; then
     BAD_TUN_INTERFACE="netifd interface singbox_tun is missing"
     BAD_DOWNLOAD_RULE="locally bound tun0 traffic does not use the vpn table"
     BAD_MARK_RULE="marked IPv4 traffic does not use the vpn table at priority 100"
+    BAD_WDNS_RULE="WDNS server does not use the vpn table at priority 80"
+    WDNS_RULE_ON="WDNS server routed through the vpn table"
     BAD_KILL_SWITCH="IPv4 kill switch configuration is incomplete or inactive"
     KILL_SWITCH_ON="IPv4 kill switch enabled"
     KILL_SWITCH_OFF="direct IPv4 fallback enabled"
@@ -45,6 +47,8 @@ else
     BAD_TUN_INTERFACE="интерфейс netifd singbox_tun отсутствует"
     BAD_DOWNLOAD_RULE="локальный трафик, привязанный к tun0, не направляется в таблицу vpn"
     BAD_MARK_RULE="маркированный IPv4-трафик не направляется в таблицу vpn с приоритетом 100"
+    BAD_WDNS_RULE="DNS-сервер WDNS не направляется в таблицу vpn с приоритетом 80"
+    WDNS_RULE_ON="DNS-сервер WDNS направляется через таблицу vpn"
     BAD_KILL_SWITCH="IPv4 kill switch настроен не полностью или не активен"
     KILL_SWITCH_ON="IPv4 kill switch включён"
     KILL_SWITCH_OFF="прямой резервный маршрут IPv4 разрешён"
@@ -186,6 +190,20 @@ if [ "$(uci -q get network.mark0x1.mark)" = 0x1 ] &&
     ok "marked IPv4 policy rule"
 else
     fail "$BAD_MARK_RULE"
+fi
+if [ "$(uci -q get dhcp.wdns)" = tag ]; then
+    wdns_option=$(uci -q get dhcp.wdns.dhcp_option)
+    wdns_address=${wdns_option#6,}
+    if [ "$wdns_address" != "$wdns_option" ] &&
+        [ "$(uci -q get network.wdns_tunnel)" = rule ] &&
+        [ "$(uci -q get network.wdns_tunnel.dest)" = "$wdns_address/32" ] &&
+        [ "$(uci -q get network.wdns_tunnel.priority)" = 80 ] &&
+        [ "$(uci -q get network.wdns_tunnel.lookup)" = vpn ] &&
+        ip rule show 2>/dev/null | grep -q "80:.*to $wdns_address.*lookup vpn"; then
+        ok "$WDNS_RULE_ON"
+    else
+        fail "$BAD_WDNS_RULE"
+    fi
 fi
 if uci -q get network.domain_kill_switch >/dev/null; then
     if [ "$(uci -q get network.domain_kill_switch)" = rule ] &&

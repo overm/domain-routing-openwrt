@@ -9,6 +9,7 @@ ADD_IP_CHECK_DOMAIN=1
 IPV6_DENY=0
 KILL_SWITCH=0
 WDNS=
+WDNS_REQUESTED=0
 usage() {
     printf 'Usage: %s [--no-icanhazip] [--ipv6-deny] [--kill-switch] [--wdns DNS_IPV4]\n' "$0"
 }
@@ -30,6 +31,7 @@ while [ "$#" -gt 0 ]; do
         --wdns)
             [ "$#" -ge 2 ] || { red "--wdns requires an IPv4 address"; usage >&2; exit 2; }
             WDNS=$2
+            WDNS_REQUESTED=1
             shift
             ;;
         -h|--help)
@@ -291,12 +293,34 @@ elif uci -q get dhcp.vpn_icanhazip >/dev/null; then
 fi
 uci commit dhcp
 
-if [ -n "$WDNS" ]; then
+if [ "$WDNS_REQUESTED" -eq 1 ]; then
     uci -q delete dhcp.wdns.dhcp_option || true
     uci -q batch <<EOF
 set dhcp.wdns=tag
 add_list dhcp.wdns.dhcp_option='6,$WDNS'
 commit dhcp
+EOF
+elif [ "$(uci -q get dhcp.wdns)" = tag ]; then
+    for dhcp_option in $(uci -q get dhcp.wdns.dhcp_option || true); do
+        case $dhcp_option in
+            6,*) retained_wdns=${dhcp_option#6,} ;;
+            *) continue ;;
+        esac
+        if valid_ipv4 "$retained_wdns"; then
+            WDNS=$retained_wdns
+            break
+        fi
+    done
+fi
+
+if [ -n "$WDNS" ]; then
+    uci -q batch <<EOF
+set network.wdns_tunnel=rule
+set network.wdns_tunnel.name='wdns_tunnel'
+set network.wdns_tunnel.dest='$WDNS/32'
+set network.wdns_tunnel.priority='80'
+set network.wdns_tunnel.lookup='vpn'
+commit network
 EOF
 fi
 

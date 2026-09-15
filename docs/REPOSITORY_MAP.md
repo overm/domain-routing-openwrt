@@ -69,9 +69,10 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    when the interface never appears.
 7. With `--ipv6-deny`, firewall rules reject matching IPv6 traffic from LAN and
    from the router itself. Without it, IPv6 remains direct.
-8. When configured, the optional `wdns` dnsmasq tag advertises its
-   tunnel-reachable IPv4 DNS server (DHCP option 6) to static leases carrying
-   that tag.
+8. When configured, the optional `wdns` dnsmasq tag advertises its IPv4 DNS
+   server (DHCP option 6) to static leases carrying that tag. A higher-priority
+   destination policy rule always sends that DNS server through the `vpn`
+   routing table.
 
 Runtime paths such as `/etc/init.d/getdomains`, `/etc/getdomains`,
 `/tmp/dnsmasq.d`, `/tmp/lst`, `/etc/sing-box/config.json`, and UCI files are
