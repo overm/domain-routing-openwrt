@@ -123,6 +123,76 @@ list tag 'wdns'
 Uninstalling removes the DNS server's policy-routing rule together with the
 `wdns` DHCP tag.
 
+## Common LuCI scenarios
+
+Every action below is performed in the LuCI web interface. First assign a fixed
+IPv4 address to the client: open **Network → DHCP and DNS → Static Leases**, add
+or edit a lease for the client's MAC address, and click **Save & Apply**. The
+examples use `192.168.25.139`; replace it with the address of your client.
+
+### Send all IPv4 traffic from one client through the tunnel
+
+1. Open **Network → Routing → IPv4 Rules** and click **Add**.
+2. Enter source network (Source) `192.168.25.139/32`. Leave the remaining
+   conditions empty.
+3. Select table `vpn` under **Advanced Settings**, save the rule, and click
+   **Save & Apply**.
+
+Do not edit the existing priority `100` **Routing** rule. It handles domain
+routing for traffic marked `0x1`. Priority `70` makes the new client rule run
+before the project's service rules at priorities `80`, `90`, and `100`.
+
+The project's tunnel carries IPv4 only. The client's IPv6 traffic remains
+direct unless IPv6 is disabled separately in the network configuration. If the
+route in table `vpn` disappears, rule processing continues and the client's
+IPv4 traffic may fall back to the direct route. To prevent that fallback, add
+another **IPv4 Rules** entry with priority `71`, rule type **unreachable**, and
+the same `192.168.25.139/32` source; leave its table empty. The project's global
+kill switch matches mark `0x1` and does not protect this source-based rule by
+itself.
+
+Before running `getdomains-uninstall`, delete the manually created rule under
+**Network → Routing → IPv4 Rules** and click **Save & Apply**. The uninstaller
+removes only the project's own named rules; leaving manual rules in place would
+block all IPv4 traffic from this client after the `vpn` table is removed.
+
+### Use a DNS server from the tunnel for one client
+
+This scenario works when installation is configured with
+`--wdns DNS_IPV4`. That option creates the `wdns` DHCP tag and a separate rule
+that routes the specified DNS server through table `vpn`, so the full-tunnel
+rule from the first scenario is not required.
+
+1. Open **Network → DHCP and DNS → Static Leases**, edit the client's lease,
+   and add `wdns` under
+   **Set Tag**.
+2. Click **Save & Apply**, then reconnect the client or renew its DHCP lease.
+
+DHCP option 6 advertises the DNS server to the client, but it cannot prevent a
+manually configured DNS server or DNS over HTTPS.
+
+### Keep all IPv4 traffic from one client strictly direct
+
+This scenario conflicts with the first one: choose only one of them for a given
+IP address.
+
+1. Open **Network → Firewall → Traffic Rules** and edit the existing
+   `mark_domains` rule.
+2. Add the negated address `!192.168.25.139`, without a `/32` suffix, to
+   **Source address**.
+3. Click **Save & Apply**.
+
+The client no longer receives mark `0x1`, even for destinations in
+`vpn_domains`, so its IPv4 traffic uses the normal routing table and WAN. Do
+not add the negated address to **Network → Routing**: its **Source** field only
+accepts a regular CIDR subnet and does not support `!`.
+
+IPv6 is direct by default. When `--ipv6-deny` is enabled, `block_domains6`
+continues to reject selected domains for this client. To allow direct IPv6 for
+it, edit `block_domains6` under **Traffic Rules** and add the client's MAC
+address prefixed with `!` to **Source MAC address**, for example
+`!AA:BB:CC:DD:EE:FF`.
+
 ## Diagnostics
 
 ```sh
