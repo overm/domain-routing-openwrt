@@ -642,6 +642,8 @@ fi
 end_case
 
 begin_case transition-all-options-to-default
+uci -q delete network.wdns_tunnel
+uci commit network
 if run_installer 1 "$CURRENT_CASE.install"; then
     pass "reinstallation without mode flags succeeds"
     verify_or_recover_domain_list 0 || true
@@ -649,7 +651,7 @@ if run_installer 1 "$CURRENT_CASE.install"; then
     expect_absent "omitting --ipv6-deny removes vpn_domains6" uci -q get firewall.vpn_domains6
     expect_eq "omitting --no-icanhazip restores the default mapping" vpn_domains "$(uci -q get dhcp.vpn_icanhazip.name)"
     expect_eq "WDNS remains configured because no removal option exists" "6,$WDNS_ADDRESS" "$(uci -q get dhcp.wdns.dhcp_option)"
-    expect_eq "WDNS policy rule remains configured because no removal option exists" "$WDNS_ADDRESS/32" "$(uci -q get network.wdns_tunnel.dest)"
+    expect_eq "retained WDNS tag recreates a missing policy rule" "$WDNS_ADDRESS/32" "$(uci -q get network.wdns_tunnel.dest)"
     expect_eq "sing-box configuration remains unchanged" "$SINGBOX_HASH_BEFORE" "$(singbox_config_hash)"
 else
     fail "reinstallation without mode flags succeeds"

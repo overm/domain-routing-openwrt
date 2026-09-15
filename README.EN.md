@@ -109,6 +109,9 @@ address through the `vpn` table (the tunnel). For example:
 sh /tmp/getdomains-install.sh --wdns 172.16.250.2
 ```
 
+On upgrades, rerunning the installer without `--wdns` retains an existing
+`wdns` DHCP tag and creates or repairs its corresponding policy-routing rule.
+
 To send this DNS server together with a fixed IPv4 address, add the tag to the
 static lease's `host` section in `/etc/config/dhcp` (or select the `wdns` tag
 for the static lease in LuCI):

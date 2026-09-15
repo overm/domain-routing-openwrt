@@ -13,7 +13,8 @@ The suite covers:
 - help, unknown arguments, a missing `--wdns` value, and representative invalid
   IPv4 values;
 - idempotent installation, reordered/repeated arguments, and a transition from
-  all optional modes back to defaults;
+  all optional modes back to defaults, including migration of a retained
+  `wdns` DHCP tag that predates its policy-routing rule;
 - UCI state, generated files, active nftables sets/rules, domain and WDNS policy routing,
   service state, dnsmasq-to-nft set population, and `getdomains-check`;
 - fail-open versus kill-switch routing after temporarily removing the VPN
