@@ -133,8 +133,7 @@ examples use `192.168.25.139`; replace it with the address of your client.
 ### Send all IPv4 traffic from one client through the tunnel
 
 1. Open **Network → Routing → IPv4 Rules** and click **Add**.
-2. Set priority `70`, rule type **unicast**, source
-   `192.168.25.139/32`, and destination `0.0.0.0/0`. Leave the remaining match
+2. Enter source network (Source) `192.168.25.139/32`. Leave the remaining
    conditions empty.
 3. Select table `vpn` under **Advanced Settings**, save the rule, and click
    **Save & Apply**.
@@ -152,12 +151,10 @@ the same `192.168.25.139/32` source; leave its table empty. The project's global
 kill switch matches mark `0x1` and does not protect this source-based rule by
 itself.
 
-Before running `getdomains-uninstall`, delete the manually created priority
-`71` **unreachable** rule in **Network → Routing → IPv4 Rules** and click **Save
-& Apply**. Also delete the priority `70` client rule if it is no longer needed.
-The uninstaller removes only the project's own named rules; leaving the manual
-priority `71` rule in place would block all IPv4 traffic from this client after
-the `vpn` table is removed.
+Before running `getdomains-uninstall`, delete the manually created rule under
+**Network → Routing → IPv4 Rules** and click **Save & Apply**. The uninstaller
+removes only the project's own named rules; leaving manual rules in place would
+block all IPv4 traffic from this client after the `vpn` table is removed.
 
 ### Use a DNS server from the tunnel for one client
 
