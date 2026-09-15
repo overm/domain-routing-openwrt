@@ -466,8 +466,13 @@ assert_installed_mode() {
     if [ "$wdns" -eq 1 ]; then
         expect_eq "WDNS tag advertises the requested IPv4 resolver" "tag|6,$WDNS_ADDRESS" \
             "$(uci -q get dhcp.wdns)|$(uci -q get dhcp.wdns.dhcp_option)"
+        expect_eq "WDNS policy rule targets the resolver through vpn" "rule|$WDNS_ADDRESS/32|80|vpn" \
+            "$(uci -q get network.wdns_tunnel)|$(uci -q get network.wdns_tunnel.dest)|$(uci -q get network.wdns_tunnel.priority)|$(uci -q get network.wdns_tunnel.lookup)"
+        expect_present "WDNS policy rule is active" sh -c \
+            "ip rule show | grep -q '80:.*to $WDNS_ADDRESS.*lookup vpn'"
     else
         expect_absent "WDNS tag is absent in an independently installed mode" uci -q get dhcp.wdns
+        expect_absent "WDNS policy rule is absent in an independently installed mode" uci -q get network.wdns_tunnel
     fi
 }
 
@@ -644,6 +649,7 @@ if run_installer 1 "$CURRENT_CASE.install"; then
     expect_absent "omitting --ipv6-deny removes vpn_domains6" uci -q get firewall.vpn_domains6
     expect_eq "omitting --no-icanhazip restores the default mapping" vpn_domains "$(uci -q get dhcp.vpn_icanhazip.name)"
     expect_eq "WDNS remains configured because no removal option exists" "6,$WDNS_ADDRESS" "$(uci -q get dhcp.wdns.dhcp_option)"
+    expect_eq "WDNS policy rule remains configured because no removal option exists" "$WDNS_ADDRESS/32" "$(uci -q get network.wdns_tunnel.dest)"
     expect_eq "sing-box configuration remains unchanged" "$SINGBOX_HASH_BEFORE" "$(singbox_config_hash)"
 else
     fail "reinstallation without mode flags succeeds"

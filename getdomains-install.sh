@@ -297,6 +297,12 @@ if [ -n "$WDNS" ]; then
 set dhcp.wdns=tag
 add_list dhcp.wdns.dhcp_option='6,$WDNS'
 commit dhcp
+set network.wdns_tunnel=rule
+set network.wdns_tunnel.name='wdns_tunnel'
+set network.wdns_tunnel.dest='$WDNS/32'
+set network.wdns_tunnel.priority='80'
+set network.wdns_tunnel.lookup='vpn'
+commit network
 EOF
 fi
 

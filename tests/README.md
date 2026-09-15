@@ -14,7 +14,7 @@ The suite covers:
   IPv4 values;
 - idempotent installation, reordered/repeated arguments, and a transition from
   all optional modes back to defaults;
-- UCI state, generated files, active nftables sets/rules, policy routing,
+- UCI state, generated files, active nftables sets/rules, domain and WDNS policy routing,
   service state, dnsmasq-to-nft set population, and `getdomains-check`;
 - fail-open versus kill-switch routing after temporarily removing the VPN
   default route;

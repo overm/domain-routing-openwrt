@@ -101,8 +101,9 @@ or `--ipv6-deny` removes the rules previously created for that option.
 
 #### `--wdns`
 
-The `--wdns DNS_IPV4` option creates the `wdns` DHCP tag and assigns a DNS
-server reachable through the tunnel to that tag. For example:
+The `--wdns DNS_IPV4` option creates the `wdns` DHCP tag, assigns its DNS
+server, and adds a higher-priority policy rule that routes the specified IPv4
+address through the `vpn` table (the tunnel). For example:
 
 ```sh
 sh /tmp/getdomains-install.sh --wdns 172.16.250.2
@@ -115,6 +116,9 @@ for the static lease in LuCI):
 ```text
 list tag 'wdns'
 ```
+
+Uninstalling removes the DNS server's policy-routing rule together with the
+`wdns` DHCP tag.
 
 ## Diagnostics
 
