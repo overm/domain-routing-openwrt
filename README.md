@@ -6,9 +6,8 @@ WireGuard, AmneziaWG, OpenVPN и tun2socks больше не поддержив�
 
 ## Что изменилось в OpenWrt 25
 
-В OpenWrt 25 пакетный менеджер `opkg` заменён на **`apk`**, а не на `apt` из
-Debian/Ubuntu. Поэтому установщик использует `apk update` и `apk add`. Проект
-теперь рассчитан только на firewall4/nftables
+В OpenWrt 25 пакетный менеджер `opkg` заменён на **`apk`**. Поэтому установщик
+использует `apk update` и `apk add`. Проект теперь рассчитан только на firewall4/nftables
 и списки dnsmasq `nfset`; код совместимости со старым ipset удалён.
 
 Команда запуска загружает скрипт через входящий в BusyBox `wget`. Автономный

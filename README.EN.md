@@ -6,9 +6,8 @@ WireGuard, AmneziaWG, OpenVPN, and tun2socks are no longer supported.
 
 ## OpenWrt 25 changes
 
-OpenWrt 25 migrated its package manager from `opkg` to **`apk`**. It did not
-migrate to Debian/Ubuntu's `apt`. The installer therefore uses `apk update` and
-`apk add`. The project targets firewall4/nftables
+OpenWrt 25 migrated its package manager from `opkg` to **`apk`**. The installer
+therefore uses `apk update` and `apk add`. The project targets firewall4/nftables
 only and uses dnsmasq `nfset` lists; all legacy ipset compatibility code has
 been removed.
 
