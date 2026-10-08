@@ -652,6 +652,53 @@ uci del_list dhcp.wdns.dhcp_option='42,192.0.2.123'
 uci commit dhcp
 end_case
 
+begin_case wdns-uninstall-lease-preservation
+uci -q batch <<'EOF'
+set dhcp.gd_tag_fixture=host
+set dhcp.gd_tag_fixture.name='gd-tag-fixture'
+set dhcp.gd_tag_fixture.mac='02:00:00:00:00:88'
+set dhcp.gd_tag_fixture.ip='192.0.2.88'
+add_list dhcp.gd_tag_fixture.tag='wdns'
+add_list dhcp.gd_tag_fixture.tag='gd_other_fixture'
+set dhcp.gd_other_fixture=tag
+add_list dhcp.gd_other_fixture.dhcp_option='42,192.0.2.123'
+EOF
+anonymous_lease=$(uci add dhcp host)
+uci set "dhcp.$anonymous_lease.name=gd-anonymous-fixture"
+uci set "dhcp.$anonymous_lease.mac=02:00:00:00:00:89"
+uci set "dhcp.$anonymous_lease.ip=192.0.2.89"
+uci set "dhcp.$anonymous_lease.tag=wdns"
+uci commit dhcp
+expect_eq "WDNS definition exists before uninstall" tag "$(uci -q get dhcp.wdns)"
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.before"
+if reset_domain_routing > "$RESULT_DIR/logs/$CURRENT_CASE.uninstall.log" 2>&1; then
+    pass "uninstall with retained lease references succeeds and DNS recovers"
+else
+    fail "uninstall with retained lease references succeeds and DNS recovers"
+fi
+expect_absent "uninstall removes the WDNS tag definition" uci -q get dhcp.wdns
+expect_absent "uninstall removes the WDNS tunnel rule" uci -q get network.wdns_tunnel
+expect_absent "uninstall removes the WDNS fallback rule" uci -q get network.wdns_no_fallback
+expect_eq "named static lease retains all its tags" 'wdns gd_other_fixture' "$(uci -q get dhcp.gd_tag_fixture.tag)"
+expect_eq "anonymous static lease retains its WDNS reference" wdns "$(uci -q get "dhcp.$anonymous_lease.tag")"
+expect_eq "uninstall preserves the unrelated tag definition" 'tag|42,192.0.2.123' \
+    "$(uci -q get dhcp.gd_other_fixture)|$(uci -q get dhcp.gd_other_fixture.dhcp_option)"
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.after"
+expect_present "uninstall preserves every static lease in full" cmp -s "$RESULT_DIR/leases.before" "$RESULT_DIR/leases.after"
+if reset_domain_routing > "$RESULT_DIR/logs/$CURRENT_CASE.repeat-uninstall.log" 2>&1; then
+    pass "repeated uninstall tolerates retained references to the absent tag"
+else
+    fail "repeated uninstall tolerates retained references to the absent tag"
+fi
+expect_absent "repeated uninstall leaves the WDNS definition absent" uci -q get dhcp.wdns
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.after-repeat"
+expect_present "repeated uninstall preserves every static lease in full" cmp -s "$RESULT_DIR/leases.before" "$RESULT_DIR/leases.after-repeat"
+uci -q delete dhcp.gd_tag_fixture
+uci -q delete "dhcp.$anonymous_lease"
+uci -q delete dhcp.gd_other_fixture
+uci commit dhcp
+end_case
+
 begin_case reordered-and-duplicate-options
 if reset_domain_routing > "$RESULT_DIR/logs/$CURRENT_CASE.uninstall.log" 2>&1; then
     pass "WAN and DNS recover before the reordered-argument case"

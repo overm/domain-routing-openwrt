@@ -48,6 +48,7 @@ done
 uci commit network
 uci commit firewall
 uci -q delete dhcp.vpn_icanhazip || true
+# Remove the tag definition only; keep all static-lease tag references for reuse.
 uci -q delete dhcp.wdns || true
 uci commit dhcp
 

@@ -28,6 +28,9 @@ The suite covers:
   all optional modes back to defaults, including migration of a retained
   `wdns` DHCP tag that predates its policy-routing rule, preservation of other
   DHCP options and explicitly tagged leases;
+- uninstalling removes the `wdns` tag definition and its routing rules while
+  preserving named/anonymous static leases, their `wdns` references and other
+  tags, including after a repeated uninstall;
 - UCI state, generated files, active nftables sets/rules, domain and WDNS policy routing,
   service state, dnsmasq-to-nft set population, and `getdomains-check`;
 - fail-open versus kill-switch routing after temporarily removing the VPN

@@ -273,6 +273,11 @@ sing-box package and configuration. The installer downloads both commands so
 they remain available locally after `/tmp` is cleared; uninstalling removes the
 commands as well.
 
+The `wdns` DHCP tag definition and its policy-routing rules are removed. Static
+DHCP leases and all their tags, including references to `wdns`, are preserved.
+After removal, those references no longer advertise a DNS server; reinstalling
+with `--wdns DNS_IPV4` restores the tag definition for the retained leases.
+
 ## sing-box configuration
 
 If `/etc/sing-box/config.json` does not exist, the installer creates a
