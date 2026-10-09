@@ -63,7 +63,8 @@ the repository. The installer obtains the test copies of the diagnostic and
 uninstaller through a local `file://` URL, so every scenario tests one coherent
 source revision.
 
-After the matrix, install `conntrack` and `kmod-veth`, copy
+After the matrix, install `netcat`, `conntrack` and `kmod-veth` (the minimal
+BusyBox `nc` in some images cannot listen), copy
 `tests/router-dns-lifecycle.sh` to the router, and run:
 
 ```sh

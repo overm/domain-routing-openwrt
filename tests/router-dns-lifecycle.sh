@@ -7,8 +7,11 @@ set -eu
     echo 'Set GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1 on an expendable router.' >&2; exit 2;
 }
 for command in nft ip dnsmasq nc uci conntrack; do command -v "$command" >/dev/null || {
-    echo "Missing $command (install conntrack and kmod-veth on the test router)." >&2; exit 2;
+    echo "Missing $command (install netcat, conntrack and kmod-veth on the test router)." >&2; exit 2;
 }; done
+nc -h 2>&1 | grep -q 'listen' || {
+    echo 'Install netcat: this BusyBox nc lacks listening support.' >&2; exit 2;
+}
 [ -s /etc/getdomains/domains.source ] || { echo 'Install and refresh getdomains first.' >&2; exit 2; }
 NS=gd-lifecycle
 CLIENT=gd-client
@@ -27,6 +30,15 @@ check() {
     number=$((number+1)); message=$1; shift
     if "$@"; then printf 'ok %s - %s\n' "$number" "$message"
     else printf 'not ok %s - %s\n' "$number" "$message"; failures=$((failures+1)); fi
+}
+reload_runtime() {
+    # LuCI/procd and the monitor can already hold the transaction lock.
+    attempt=0
+    while [ "$attempt" -lt 30 ]; do
+        /usr/libexec/getdomains-runtime reload && return 0
+        attempt=$((attempt+1)); sleep 1
+    done
+    return 1
 }
 cleanup() {
     for pid in $pids; do kill "$pid" 2>/dev/null || true; done
@@ -50,7 +62,7 @@ cleanup() {
     cp "$work/network.before" /etc/config/network
     if [ -f "$work/source.before" ]; then cp "$work/source.before" /etc/getdomains/domains.source; fi
     /etc/init.d/network reload
-    /usr/libexec/getdomains-runtime reload || true
+    reload_runtime || true
     /etc/init.d/dnsmasq restart
     rm -rf "$work"
 }
@@ -76,7 +88,7 @@ awk -v wdns='127.0.0.1#1054' -f /usr/libexec/getdomains-compile.awk \
 printf 'nftset=/manual.test/4#inet#fw4#vpn_domains\nnftset=/manual.test/4#inet#fw4#other4\n' >> "$work/client.conf"
 dnsmasq --keep-in-foreground --conf-file="$work/client.conf" --pid-file="$work/client.pid" --port=1053 \
     --listen-address=127.0.0.1 --bind-interfaces --no-resolv \
-    --server='127.0.0.1#1055' > "$work/client.log" 2>&1 &
+    --server='127.0.0.1#1055' --log-facility=- > "$work/client.log" 2>&1 &
 pids="$pids $!"
 sleep 1
 query() { nslookup "$1" 127.0.0.1:1053 2>/dev/null | grep -q "$2"; }
@@ -112,20 +124,25 @@ ip link set gd-lan up
 ip addr add 192.0.2.1/30 dev br-lan
 ip netns exec "$CLIENT" ip addr add 192.0.2.2/30 dev gd-client
 ip netns exec "$CLIENT" ip link set gd-client up
+ip netns exec "$CLIENT" ip link set lo up
 ip netns exec "$CLIENT" ip route add default via 192.0.2.1
 nft insert rule inet fw4 forward iifname br-lan oifname gd-host ip daddr 192.0.2.202 \
     tcp dport '{ 18083, 18084 }' accept comment 'gd-test-packet-forward'
 # fw4's WAN output policy may be REJECT on some images; fail visibly if so.
 open_flow() {
     port=$1
-    ip netns exec "$NS" sh -c "exec nc -l -p $port >/dev/null" &
+    mkfifo "$work/server-$port"
+    ip netns exec "$NS" nc -n -l -p "$port" < "$work/server-$port" > /dev/null &
     pids="$pids $!"
+    (sleep 180) > "$work/server-$port" &
+    pids="$pids $!"
+    sleep 1
     mkfifo "$work/input-$port"
     if [ "${2:-}" = lan ]; then
-        ip netns exec "$CLIENT" nc 192.0.2.202 "$port" < "$work/input-$port" > /dev/null &
-    else nc 192.0.2.202 "$port" < "$work/input-$port" > /dev/null & fi
+        ip netns exec "$CLIENT" nc -n 192.0.2.202 "$port" < "$work/input-$port" > /dev/null &
+    else nc -n 192.0.2.202 "$port" < "$work/input-$port" > /dev/null & fi
     pids="$pids $!"
-    (i=0; while [ "$i" -lt 120 ]; do echo tick; sleep 1; i=$((i+1)); done) > "$work/input-$port" &
+    (i=0; while [ "$i" -lt 180 ]; do echo tick; sleep 1; i=$((i+1)); done) > "$work/input-$port" &
     pids="$pids $!"
     sleep 2
 }
@@ -171,6 +188,15 @@ check 'router VPN packets keep the mark after expiry' packet_mark mangle_output 
 check 'LAN VPN packets keep the mark after expiry' packet_mark mangle_prerouting 18084
 
 # Save & Apply equivalent: native UCI + procd event, then wait for reconciliation.
+wait_applied() {
+    attempt=0
+    while [ "$attempt" -lt 30 ]; do
+        if /usr/libexec/getdomains-runtime check &&
+            nslookup "$1" 127.0.0.1 2>/dev/null | grep -q "$2"; then return 0; fi
+        attempt=$((attempt+1)); sleep 1
+    done
+    return 1
+}
 uci -q batch <<'EOF'
 set dhcp.gd_test_manual=ipset
 add_list dhcp.gd_test_manual.name='vpn_domains'
@@ -181,7 +207,7 @@ set dhcp.gd_test_host.ip='198.51.100.57'
 commit dhcp
 EOF
 ubus call service event '{"type":"config.change","data":{"package":"dhcp"}}'
-sleep 5
+wait_applied manual-lifecycle.test 198.51.100.57 || true
 confdir=$(uci -q get dhcp.@dnsmasq[0].confdir)
 check 'LuCI manual domain is compiled after Apply' grep -q '^nftset=/manual-lifecycle.test/' "$confdir/domains.lst"
 check 'local LuCI hostname resolves to its configured IP' sh -c 'nslookup manual-lifecycle.test 127.0.0.1 | grep -q 198.51.100.57'
@@ -194,7 +220,7 @@ uci -q delete dhcp.gd_test_manual
 uci -q delete dhcp.gd_test_host
 uci commit dhcp
 ubus call service event '{"type":"config.change","data":{"package":"dhcp"}}'
-sleep 5
+wait_applied localhost 127.0.0.1 || true
 check 'deleting the manual row removes its DNS rule' sh -c "! grep -q manual-lifecycle.test '$confdir/domains.lst'"
 check 'manual deletion preserves the existing VPN flow' flow_mark 18082 1073741825
 
@@ -202,12 +228,12 @@ check 'manual deletion preserves the existing VPN flow' flow_mark 18082 10737418
 # disappear. Use a private source snapshot; restore it before cleanup.
 cp /etc/getdomains/domains.source "$work/source.before"
 printf 'nftset=/replacement.test/4#inet#fw4#vpn_domains\n' > /etc/getdomains/domains.source
-/usr/libexec/getdomains-runtime reload
+reload_runtime
 check 'source replacement installs the new domain' grep -q '/replacement.test/' "$confdir/domains.lst"
 check 'source replacement keeps learned IPs rather than flushing shared sets' nft get element inet fw4 vpn_domains '{ 198.51.100.57 }'
 check 'source replacement keeps the established VPN flow' flow_mark 18082 1073741825
 cp "$work/source.before" /etc/getdomains/domains.source
-/usr/libexec/getdomains-runtime reload
+reload_runtime
 
 # Other users of packet/conntrack marks must survive route restoration. Replies
 # belong to the same tracked flow but must not receive the VPN routing bit.

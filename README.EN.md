@@ -96,7 +96,9 @@ sh /tmp/getdomains-install.sh --kill-switch --ipv6-deny
 | both flags | denied | denied |
 
 Rerunning the installer applies the requested mode; omitting `--kill-switch`
-or `--ipv6-deny` removes the rules previously created for that option.
+or `--ipv6-deny` removes the rules previously created for that option. Retained
+sections are updated in place, so repeating the same options preserves their
+configuration order.
 
 #### `--wdns`
 
