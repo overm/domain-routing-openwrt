@@ -207,12 +207,15 @@ EOF
     green "Created /etc/sing-box/config.json; edit the CHANGE_ME values before starting sing-box."
 fi
 
-uci -q delete network.domain_kill_switch || true
-uci -q delete firewall.vpn_domains6 || true
-uci -q delete firewall.block_domains6 || true
-uci -q delete firewall.block_local_domains6 || true
-uci -q delete firewall.refresh_domains_prerouting || true
-uci -q delete firewall.refresh_domains_output || true
+# Update retained sections in place so repeated installation preserves order.
+if [ "$KILL_SWITCH" -eq 0 ]; then
+    uci -q delete network.domain_kill_switch || true
+fi
+if [ "$IPV6_DENY" -eq 0 ]; then
+    uci -q delete firewall.vpn_domains6 || true
+    uci -q delete firewall.block_domains6 || true
+    uci -q delete firewall.block_local_domains6 || true
+fi
 
 uci -q batch <<'EOF'
 set sing-box.main=sing-box

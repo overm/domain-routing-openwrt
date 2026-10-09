@@ -29,6 +29,7 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 | `README.md`, `README.EN.md` | Russian and English public documentation. |
 | `tests/router-install-matrix.sh` | Destructive OpenWrt integration matrix for installer modes, transitions, routing, dnsmasq, and nftables behavior. |
 | `tests/router-dns-lifecycle.sh` | Destructive DNS upstream and live TCP conntrack/packet-mark tests, including simulated LAN traffic. |
+| `tests/router-boot-restore.sh` | Two-stage destructive reboot test for cached DNS, manual local records, monitor and WDNS guards. |
 | `tests/test_*.py` | Host-safe compiler and transaction tests with mocked device boundaries. |
 | `tests/results/` | Reviewed reports and per-case summaries from named OpenWrt testbeds; raw device logs and credentials are never committed. |
 

@@ -82,6 +82,14 @@ The fixture uses TEST-NET addresses and ports 1053–1055/18081–18084; ensure 
 are unused. It does not prove remote WDNS availability, proxy health, or behavior
 across a reboot. Reboot/client-cache limitations are documented in both READMEs.
 
+To test actual reboot restoration, copy `router-boot-restore.sh` to
+`/root/router-boot-restore.sh` (not `/tmp`). On the expendable router run
+`GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1 sh /root/router-boot-restore.sh prepare`,
+reboot, wait for services, then run the same command with `verify`.
+This checks the persistent source and restored compiled DNS file, local-IP
+seeding before queries, a manual hostname/CNAME, monitor, WDNS guards and full
+diagnostics. Verification restores the DHCP configuration saved by preparation.
+
 No results for this new lifecycle suite have been recorded yet. Existing reports
 under `tests/results` describe their recorded revisions, not these changes.
 

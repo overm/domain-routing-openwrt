@@ -675,6 +675,9 @@ uci set "dhcp.$anonymous_lease.name=gd-anonymous-fixture"
 uci set "dhcp.$anonymous_lease.mac=02:00:00:00:00:89"
 uci set "dhcp.$anonymous_lease.ip=192.0.2.89"
 uci set "dhcp.$anonymous_lease.tag=wdns"
+# Anonymous UCI IDs can change when an earlier section is removed. This is
+# the last host fixture, so use its positional selector after creation.
+anonymous_lease='@host[-1]'
 uci commit dhcp
 expect_eq "WDNS definition exists before uninstall" tag "$(uci -q get dhcp.wdns)"
 uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.before"
