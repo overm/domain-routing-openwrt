@@ -92,8 +92,9 @@ This checks the persistent source and restored compiled DNS file, local-IP
 seeding before queries, a manual hostname/CNAME, monitor, WDNS guards and full
 diagnostics. Verification restores the DHCP configuration saved by preparation.
 
-No results for this new lifecycle suite have been recorded yet. Existing reports
-under `tests/results` describe their recorded revisions, not these changes.
+The [2026-10-09 report](results/openwrt-25.12.5-2026-10-09.md) records the split-DNS
+matrix, live TCP/LAN lifecycle, actual LuCI add/edit/delete and reboot checks.
+Earlier reports under `tests/results` describe their own recorded revisions.
 
 Run on the router:
 
