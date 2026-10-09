@@ -209,5 +209,18 @@ check 'source replacement keeps the established VPN flow' flow_mark 18082 107374
 cp "$work/source.before" /etc/getdomains/domains.source
 /usr/libexec/getdomains-runtime reload
 
+# Other users of packet/conntrack marks must survive route restoration. Replies
+# belong to the same tracked flow but must not receive the VPN routing bit.
+conntrack -U -p tcp --dst 192.0.2.202 --dport 18082 --mark 1610612737 >/dev/null 2>&1
+nft insert rule inet fw4 mangle_output ip daddr 192.0.2.202 tcp dport 18082 \
+    meta mark set meta mark \| 0x20000000 comment 'gd-test-packet-extra'
+nft add rule inet fw4 mangle_output ip daddr 192.0.2.202 tcp dport 18082 \
+    ct direction original meta mark \& 0x20000001 == 0x20000001 counter comment 'gd-test-packet-preserve'
+nft add rule inet fw4 mangle_prerouting ip saddr 192.0.2.202 tcp sport 18082 \
+    ct direction reply meta mark \& 0x1 == 0 counter comment 'gd-test-packet-reply'
+check 'route restoration preserves unrelated conntrack bits' flow_mark 18082 1610612737
+check 'route restoration preserves unrelated packet bits' packet_mark mangle_output preserve
+check 'reply packets do not receive the VPN routing bit' packet_mark mangle_prerouting reply
+
 printf '1..%s\n' "$number"
 exit "$failures"

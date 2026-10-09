@@ -27,6 +27,11 @@ SOURCE_DIR=$RESULT_DIR/source-under-test
 INSTALLER=$SOURCE_DIR/getdomains-install.sh
 UNINSTALLER=$SOURCE_DIR/getdomains-uninstall.sh
 WDNS_ADDRESS=${GETDOMAINS_TEST_WDNS:-192.0.2.53}
+ONLY_MASK=${GETDOMAINS_TEST_ONLY_MASK:-}
+case $ONLY_MASK in
+    ''|[0-9]|1[0-5]) ;;
+    *) echo 'GETDOMAINS_TEST_ONLY_MASK must be an integer from 0 to 15' >&2; exit 2;;
+esac
 if ! printf '%s\n' "$WDNS_ADDRESS" | awk -F. '
     NF != 4 { exit 1 }
     { for (i=1; i<=4; i++) if ($i !~ /^[0-9]+$/ || $i>255 ||
@@ -610,6 +615,13 @@ expect_present "working sing-box configuration passes validation" sing-box check
     printf 'SINGBOX_CONFIG_SHA256_BEFORE=%s\n' "$SINGBOX_HASH_BEFORE"
 } > "$RESULT_DIR/metadata.txt"
 end_case
+
+if [ -n "$ONLY_MASK" ]; then
+    run_matrix_case "$ONLY_MASK"
+    printf '%s\n' "Assertions: $TOTAL total, $PASSED passed, $FAILED failed, $SKIPPED skipped"
+    [ "$FAILED" -eq 0 ]
+    exit $?
+fi
 
 run_cli_validation help 0 --help
 run_cli_validation unknown-option 2 --does-not-exist

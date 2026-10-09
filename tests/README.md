@@ -74,8 +74,9 @@ This additional destructive suite uses isolated DNS servers and namespaces to
 test distinct WDNS/provider answers, equal-domain native nftset collisions,
 real direct/VPN TCP connections from the router and LAN, packet-mark restoration
 after IP expiry, learning an IP mid-connection, LuCI add/delete/local overrides,
-and source replacement while flows remain established. Test-specific VPN routes
-lead to a controlled namespace rather than the remote proxy. The matrix still
+and source replacement while flows remain established. It also checks unrelated
+packet/conntrack mark bits and reply direction. Test-specific VPN routes lead to
+a controlled namespace rather than the remote proxy. The matrix still
 tests the real tunnel's routing and missing-route behavior. Cleanup restores
 dhcp/network/source snapshots; use an expendable router with no concurrent edits.
 The fixture uses TEST-NET addresses and ports 1053–1055/18081–18084; ensure they
@@ -107,3 +108,9 @@ The result directory contains a TAP stream, a per-case TSV summary, environment
 metadata, and detailed logs. Installer logs can contain network-specific data;
 review them before publishing. The committed result report is a manually
 reviewed summary rather than a raw log archive.
+
+For a targeted rerun, set `GETDOMAINS_TEST_ONLY_MASK` to one integer from 0 to
+15 and use a separate result directory. Bits 1/2/4/8 select `--no-icanhazip`,
+`--ipv6-deny`, `--kill-switch` and `--wdns`, respectively. Only preflight and
+that mode run; the selected mode remains installed afterward. Leave the
+variable unset for the full matrix and final default restoration.
