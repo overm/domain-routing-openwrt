@@ -27,6 +27,23 @@ WireGuard, AmneziaWG, OpenVPN и tun2socks больше не поддержив�
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
 
+Для установки из другой ветки или конкретного коммита задайте один источник
+для установщика и всех вспомогательных файлов. Замените `BRANCH_OR_COMMIT`
+именем ветки или полным SHA коммита:
+
+```sh
+getdomains_ref='BRANCH_OR_COMMIT'
+getdomains_source="https://raw.githubusercontent.com/overm/domain-routing-openwrt/$getdomains_ref"
+wget -O /tmp/getdomains-install.sh "$getdomains_source/getdomains-install.sh" && \
+GETDOMAINS_SCRIPT_BASE_URL="$getdomains_source" sh /tmp/getdomains-install.sh
+```
+
+Дополнительные флаги, например `--wdns`, добавляются после имени скрипта.
+Без `GETDOMAINS_SCRIPT_BASE_URL` вспомогательные файлы загружаются из `master`,
+даже если сам установщик скачан из другой ветки. Для повторного запуска из
+`/tmp` также передавайте эту переменную. Полный SHA фиксирует одну версию всех
+файлов; содержимое ветки может измениться между загрузками.
+
 Во время установки выберите один доменный список: **Russia inside** (по
 умолчанию), **Russia outside** или **Ukraine**.
 

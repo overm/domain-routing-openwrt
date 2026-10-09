@@ -5,6 +5,13 @@ set -eu
 green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
+support_download_error() {
+    red "Could not download or validate $1."
+    red "Source: $SCRIPT_BASE_URL/$1"
+    red "For a branch or commit, set GETDOMAINS_SCRIPT_BASE_URL to its raw file directory."
+    red "No router configuration was changed."
+}
+
 ADD_IP_CHECK_DOMAIN=1
 IPV6_DENY=0
 KILL_SWITCH=0
@@ -102,7 +109,7 @@ for script in getdomains-check getdomains-uninstall getdomains-runtime; do
         --retry-delay 2 "$SCRIPT_BASE_URL/${script}.sh" -o "$temporary" || \
         ! sh -n "$temporary"; then
         rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
-        red "Could not download ${script}.sh. No router configuration was changed."
+        support_download_error "${script}.sh"
         exit 1
     fi
 done
@@ -111,7 +118,7 @@ if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 --retry-delay 2 \
     "$SCRIPT_BASE_URL/getdomains-compile.awk" -o "$temporary" ||
     ! awk -f "$temporary" /dev/null /dev/null >/dev/null; then
     rm -f "$temporary" /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
-    red "Could not validate the DNS compiler. No router configuration was changed."
+    support_download_error getdomains-compile.awk
     exit 1
 fi
 mkdir -p /usr/libexec

@@ -4,9 +4,13 @@
 
 Run `python -B -m unittest discover -s tests -p 'test_*.py' -v` with Python 3,
 POSIX sh and awk (Git for Windows is supported; override the shell with
-`GETDOMAINS_TEST_SH`). These tests execute only the pure compiler and runtime
-function definitions with mocked UCI, nft, DNS, download and service boundaries.
-They never execute the installer, uninstaller or runtime device dispatcher.
+`GETDOMAINS_TEST_SH`). These tests execute only the pure compiler, runtime
+function definitions and the installer's isolated support-download stage with
+mocked UCI, nft, DNS, download and service boundaries. Download staging paths
+are redirected into a temporary directory. They never execute the full installer,
+uninstaller or runtime device dispatcher. Bootstrap tests cover the default source,
+branch/commit/local overrides, partial downloads and invalid helper syntax,
+including cleanup before any support file is installed.
 The firewall compatibility test reads the generated-rule templates and rejects
 mark assignments that combine runtime registers unsupported by Linux 6.12.
 Coverage includes DNS selection, exact/subdomain precedence, equal-domain set

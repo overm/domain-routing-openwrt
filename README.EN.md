@@ -28,6 +28,23 @@ Only the standalone installer is supported; the Ansible role has been removed.
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
 
+To install from another branch or a specific commit, use one source for the
+installer and all support files. Replace `BRANCH_OR_COMMIT` with the branch
+name or the full commit SHA:
+
+```sh
+getdomains_ref='BRANCH_OR_COMMIT'
+getdomains_source="https://raw.githubusercontent.com/overm/domain-routing-openwrt/$getdomains_ref"
+wget -O /tmp/getdomains-install.sh "$getdomains_source/getdomains-install.sh" && \
+GETDOMAINS_SCRIPT_BASE_URL="$getdomains_source" sh /tmp/getdomains-install.sh
+```
+
+Append additional options, such as `--wdns`, after the script name. Without
+`GETDOMAINS_SCRIPT_BASE_URL`, support files are downloaded from `master`, even
+when the installer itself came from another branch. Pass this variable again
+when rerunning the script from `/tmp`. A full SHA pins all files to one version;
+a branch can change between downloads.
+
 During installation, select one domain list: **Russia inside** (the default),
 **Russia outside**, or **Ukraine**.
 

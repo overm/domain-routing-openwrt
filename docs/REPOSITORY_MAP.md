@@ -38,7 +38,10 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 1. The launch command downloads the installer with BusyBox `wget`; the installer
    uses `apk` to install curl, sing-box, dnsmasq-full, and ip-full. The full `ip`
    implementation is required for the `oif tun0` policy rule used by router-local
-   downloads.
+   downloads. Support scripts and the compiler default to `master`; downloading
+   the installer from another ref does not select that ref for support files.
+   Branch/commit installation must pass `GETDOMAINS_SCRIPT_BASE_URL` pointing
+   to the same raw file directory. A full commit SHA pins every file to one revision.
 2. `getdomains` serializes refreshes with a lock, downloads the domain list to a
    temporary file, enforces its size and expected format, validates it, and
    atomically replaces only valid data. Staging is outside confdir; its publication
