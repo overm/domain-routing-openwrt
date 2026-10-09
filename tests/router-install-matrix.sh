@@ -26,7 +26,14 @@ esac
 SOURCE_DIR=$RESULT_DIR/source-under-test
 INSTALLER=$SOURCE_DIR/getdomains-install.sh
 UNINSTALLER=$SOURCE_DIR/getdomains-uninstall.sh
-WDNS_ADDRESS=192.0.2.53
+WDNS_ADDRESS=${GETDOMAINS_TEST_WDNS:-192.0.2.53}
+if ! printf '%s\n' "$WDNS_ADDRESS" | awk -F. '
+    NF != 4 { exit 1 }
+    { for (i=1; i<=4; i++) if ($i !~ /^[0-9]+$/ || $i>255 ||
+        (length($i)>1 && substr($i,1,1)=="0")) exit 1 }
+'; then
+    echo 'GETDOMAINS_TEST_WDNS must be one IPv4 address' >&2; exit 2
+fi
 TEST_IPV4_OUTPUT=198.51.100.10
 TEST_IPV4_LAN=198.51.100.11
 TEST_IPV4_ROUTE=198.51.100.200

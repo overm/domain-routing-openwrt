@@ -72,6 +72,8 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    Prepend includes restore bit 0x1 for original-direction packets of classified
    connections; append includes save both VPN and direct decisions, using
    conntrack bit 0x40000000. Replies are excluded and other mark bits preserved.
+   Route-bit copies use conditional rules and constant masks, since Linux 6.12
+   cannot combine two runtime registers in an nft bitwise expression.
    Flow offloading is disabled. Routine DNS changes never reload firewall or
    flush conntrack. A firewall script include requests DNS cache clearing and
    reseeding when firewall4 recreates the RAM-only sets.

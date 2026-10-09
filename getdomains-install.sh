@@ -165,11 +165,15 @@ for chain in prerouting output; do
         temporary=$REFRESH_PREROUTING_TEMP; prefix='iifname $lan_devices'
     else temporary=$REFRESH_OUTPUT_TEMP; prefix=; fi
     cat >> "$temporary" <<EOF
-$prefix meta nfproto ipv4 ct direction original ct mark & 0x40000000 != 0 meta mark set (meta mark & 0xfffffffe) | (ct mark & 0x1) | 0x40000000 comment "getdomains: restore connection route"
+# Constant bit operations work on OpenWrt 25's Linux 6.12; combining two
+# register expressions requires a newer kernel. Keep the other mark bits.
+$prefix meta nfproto ipv4 ct direction original ct mark & 0x40000001 == 0x40000000 meta mark set (meta mark & 0xfffffffe) | 0x40000000 comment "getdomains: restore connection route direct"
+$prefix meta nfproto ipv4 ct direction original ct mark & 0x40000001 == 0x40000001 meta mark set meta mark | 0x40000001 comment "getdomains: restore connection route VPN"
 $prefix meta nfproto ipv4 ct direction reply meta mark set meta mark | 0x40000000 comment "getdomains: skip reply classification"
 EOF
     cat > "/etc/getdomains/save-$chain.nft" <<EOF
-$prefix meta nfproto ipv4 ct direction original ct state { new, established, related } ct mark & 0x40000000 == 0 ct mark set (ct mark & 0xfffffffe) | (meta mark & 0x1) | 0x40000000 comment "getdomains: save connection route"
+$prefix meta nfproto ipv4 ct direction original ct state { new, established, related } ct mark & 0x40000000 == 0 meta mark & 0x1 == 0 ct mark set (ct mark & 0xfffffffe) | 0x40000000 comment "getdomains: save connection route direct"
+$prefix meta nfproto ipv4 ct direction original ct state { new, established, related } ct mark & 0x40000000 == 0 meta mark & 0x1 == 1 ct mark set ct mark | 0x40000001 comment "getdomains: save connection route VPN"
 $prefix meta nfproto ipv4 meta mark set meta mark & 0xbfffffff comment "getdomains: clear temporary flag"
 EOF
 done

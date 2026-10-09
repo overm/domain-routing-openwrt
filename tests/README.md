@@ -7,6 +7,8 @@ POSIX sh and awk (Git for Windows is supported; override the shell with
 `GETDOMAINS_TEST_SH`). These tests execute only the pure compiler and runtime
 function definitions with mocked UCI, nft, DNS, download and service boundaries.
 They never execute the installer, uninstaller or runtime device dispatcher.
+The firewall compatibility test reads the generated-rule templates and rejects
+mark assignments that combine runtime registers unsupported by Linux 6.12.
 Coverage includes DNS selection, exact/subdomain precedence, equal-domain set
 union, local records, IPv6, injection/size limits, stale-rule deletion, concurrent
 LuCI snapshots, failed downloads/validation/seeding/restarts, retry and boot restore.
@@ -50,6 +52,9 @@ The router must already have:
 
 - OpenWrt 25 or newer with working package repositories;
 - a valid, working sing-box configuration and tunnel;
+- a DNS resolver reachable through that tunnel, supplied as
+  `GETDOMAINS_TEST_WDNS`; the default TEST-NET address `192.0.2.53` requires an
+  explicitly configured DNS fixture. Split DNS now sends actual queries there;
 - all three original scripts plus `getdomains-runtime.sh` and
   `getdomains-compile.awk` copied to `/tmp/domain-routing-source`.
 
@@ -84,6 +89,7 @@ Run on the router:
 
 ```sh
 GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1 \
+GETDOMAINS_TEST_WDNS=1.1.1.1 \
 GETDOMAINS_TEST_SOURCE_DIR=/tmp/domain-routing-source \
 GETDOMAINS_TEST_RESULT_DIR=/tmp/domain-routing-results \
 sh /tmp/domain-routing-source/tests/router-install-matrix.sh
