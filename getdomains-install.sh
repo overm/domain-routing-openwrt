@@ -5,6 +5,13 @@ set -eu
 green() { printf '\033[32;1m%s\033[0m\n' "$*"; }
 red() { printf '\033[31;1m%s\033[0m\n' "$*" >&2; }
 
+support_download_error() {
+    red "Could not download or validate $1."
+    red "Source: $SCRIPT_BASE_URL/$1"
+    red "For a branch or commit, set GETDOMAINS_SCRIPT_BASE_URL to its raw file directory."
+    red "No router configuration was changed."
+}
+
 ADD_IP_CHECK_DOMAIN=1
 IPV6_DENY=0
 KILL_SWITCH=0
@@ -61,6 +68,29 @@ if ! command -v apk >/dev/null 2>&1; then
     red "apk was not found. OpenWrt 25+ firmware with apk is required (not apt or opkg)."
     exit 1
 fi
+printf '%s\n' \
+    'Select the domain list:' \
+    '1) Russia inside' \
+    '2) Russia outside' \
+    '3) Ukraine'
+printf 'Selection [1]: '
+read -r COUNTRY
+case ${COUNTRY:-1} in
+    1) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst' ;;
+    2) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-nfset.lst' ;;
+    3) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Ukraine/inside-dnsmasq-nfset.lst' ;;
+    *) red "Unknown selection"; exit 1 ;;
+esac
+
+for server in $(uci -q get dhcp.@dnsmasq[0].server || true); do
+    case $server in /*) ;; *)
+        red "Remove global DNS forwards in LuCI before installation; domain-specific forwards are preserved."
+        exit 1;;
+    esac
+done
+case $(uci -q get dhcp.@dnsmasq[0].confdir || true) in
+    *,*) red "Use a dnsmasq confdir without extension filters before installation."; exit 1;;
+esac
 green "Refreshing apk indexes"
 apk update
 apk add curl sing-box dnsmasq-full ip-full nano
@@ -72,24 +102,51 @@ if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
 fi
 
 SCRIPT_BASE_URL=${GETDOMAINS_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/overm/domain-routing-openwrt/master}
-for script in getdomains-check getdomains-uninstall; do
+for script in getdomains-check getdomains-uninstall getdomains-runtime; do
     temporary="/tmp/${script}.sh.$$"
     rm -f "$temporary"
     if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 \
         --retry-delay 2 "$SCRIPT_BASE_URL/${script}.sh" -o "$temporary" || \
         ! sh -n "$temporary"; then
-        rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$
-        red "Could not download ${script}.sh. No router configuration was changed."
+        rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
+        support_download_error "${script}.sh"
         exit 1
     fi
 done
-for script in getdomains-check getdomains-uninstall; do
+temporary=/tmp/getdomains-compile.awk.$$
+if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 --retry-delay 2 \
+    "$SCRIPT_BASE_URL/getdomains-compile.awk" -o "$temporary" ||
+    ! awk -f "$temporary" /dev/null /dev/null >/dev/null; then
+    rm -f "$temporary" /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
+    support_download_error getdomains-compile.awk
+    exit 1
+fi
+mkdir -p /usr/libexec
+mv -f "$temporary" /usr/libexec/getdomains-compile.awk
+for script in getdomains-check getdomains-uninstall getdomains-runtime; do
     temporary="/tmp/${script}.sh.$$"
     chmod 0755 "$temporary"
-    mv -f "$temporary" "/usr/bin/$script"
+    if [ "$script" = getdomains-runtime ]; then
+        mkdir -p /usr/libexec
+        mv -f "$temporary" /usr/libexec/getdomains-runtime
+    else
+        mv -f "$temporary" "/usr/bin/$script"
+    fi
 done
 
 mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/getdomains /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
+for option in flow_offloading flow_offloading_hw; do
+    if [ ! -f "/etc/getdomains/$option.previous" ]; then
+        uci -q get "firewall.@defaults[0].$option" > "/etc/getdomains/$option.previous" ||
+            printf '__unset__\n' > "/etc/getdomains/$option.previous"
+    fi
+done
+for option in noresolv resolvfile; do
+    if [ ! -f "/etc/getdomains/$option.previous" ]; then
+        uci -q get "dhcp.@dnsmasq[0].$option" > "/etc/getdomains/$option.previous" ||
+            printf '__unset__\n' > "/etc/getdomains/$option.previous"
+    fi
+done
 
 REFRESH_PREROUTING_FILE=/etc/getdomains/refresh-prerouting.nft
 REFRESH_OUTPUT_FILE=/etc/getdomains/refresh-output.nft
@@ -110,6 +167,23 @@ EOF
 ct state new ip6 daddr @vpn_domains6 update @vpn_domains6 { ip6 daddr timeout 2d } comment "getdomains: refresh router IPv6 domain timeout"
 EOF
 fi
+for chain in prerouting output; do
+    if [ "$chain" = prerouting ]; then
+        temporary=$REFRESH_PREROUTING_TEMP; prefix='iifname $lan_devices'
+    else temporary=$REFRESH_OUTPUT_TEMP; prefix=; fi
+    cat >> "$temporary" <<EOF
+# Constant bit operations work on OpenWrt 25's Linux 6.12; combining two
+# register expressions requires a newer kernel. Keep the other mark bits.
+$prefix meta nfproto ipv4 ct direction original ct mark & 0x40000001 == 0x40000000 meta mark set (meta mark & 0xfffffffe) | 0x40000000 comment "getdomains: restore connection route direct"
+$prefix meta nfproto ipv4 ct direction original ct mark & 0x40000001 == 0x40000001 meta mark set meta mark | 0x40000001 comment "getdomains: restore connection route VPN"
+$prefix meta nfproto ipv4 ct direction reply meta mark set meta mark | 0x40000000 comment "getdomains: skip reply classification"
+EOF
+    cat > "/etc/getdomains/save-$chain.nft" <<EOF
+$prefix meta nfproto ipv4 ct direction original ct state { new, established, related } ct mark & 0x40000000 == 0 meta mark & 0x1 == 0 ct mark set (ct mark & 0xfffffffe) | 0x40000000 comment "getdomains: save connection route direct"
+$prefix meta nfproto ipv4 ct direction original ct state { new, established, related } ct mark & 0x40000000 == 0 meta mark & 0x1 == 1 ct mark set ct mark | 0x40000001 comment "getdomains: save connection route VPN"
+$prefix meta nfproto ipv4 meta mark set meta mark & 0xbfffffff comment "getdomains: clear temporary flag"
+EOF
+done
 chmod 0644 "$REFRESH_PREROUTING_TEMP" "$REFRESH_OUTPUT_TEMP"
 mv -f "$REFRESH_PREROUTING_TEMP" "$REFRESH_PREROUTING_FILE"
 mv -f "$REFRESH_OUTPUT_TEMP" "$REFRESH_OUTPUT_FILE"
@@ -140,12 +214,15 @@ EOF
     green "Created /etc/sing-box/config.json; edit the CHANGE_ME values before starting sing-box."
 fi
 
-uci -q delete network.domain_kill_switch || true
-uci -q delete firewall.vpn_domains6 || true
-uci -q delete firewall.block_domains6 || true
-uci -q delete firewall.block_local_domains6 || true
-uci -q delete firewall.refresh_domains_prerouting || true
-uci -q delete firewall.refresh_domains_output || true
+# Update retained sections in place so repeated installation preserves order.
+if [ "$KILL_SWITCH" -eq 0 ]; then
+    uci -q delete network.domain_kill_switch || true
+fi
+if [ "$IPV6_DENY" -eq 0 ]; then
+    uci -q delete firewall.vpn_domains6 || true
+    uci -q delete firewall.block_domains6 || true
+    uci -q delete firewall.block_local_domains6 || true
+fi
 
 uci -q batch <<'EOF'
 set sing-box.main=sing-box
@@ -158,7 +235,7 @@ set network.singbox_tun.proto='none'
 set network.singbox_tun.device='tun0'
 set network.mark0x1=rule
 set network.mark0x1.name='mark0x1'
-set network.mark0x1.mark='0x1'
+set network.mark0x1.mark='0x1/0x1'
 set network.mark0x1.priority='100'
 set network.mark0x1.lookup='vpn'
 set network.tun0_download=rule
@@ -201,7 +278,8 @@ set firewall.mark_domains.src='lan'
 set firewall.mark_domains.dest='*'
 set firewall.mark_domains.proto='all'
 set firewall.mark_domains.ipset='vpn_domains'
-set firewall.mark_domains.set_mark='0x1'
+set firewall.mark_domains.set_mark='0x1/0x1'
+set firewall.mark_domains.mark='0x0/0x40000000'
 set firewall.mark_domains.target='MARK'
 set firewall.mark_domains.family='ipv4'
 set firewall.mark_local_domains=rule
@@ -209,7 +287,8 @@ set firewall.mark_local_domains.name='mark_local_domains'
 set firewall.mark_local_domains.dest='*'
 set firewall.mark_local_domains.proto='all'
 set firewall.mark_local_domains.ipset='vpn_domains'
-set firewall.mark_local_domains.set_mark='0x1'
+set firewall.mark_local_domains.set_mark='0x1/0x1'
+set firewall.mark_local_domains.mark='0x0/0x40000000'
 set firewall.mark_local_domains.target='MARK'
 set firewall.mark_local_domains.family='ipv4'
 set firewall.refresh_domains_prerouting=include
@@ -222,17 +301,48 @@ set firewall.refresh_domains_output.type='nftables'
 set firewall.refresh_domains_output.path='/etc/getdomains/refresh-output.nft'
 set firewall.refresh_domains_output.position='chain-prepend'
 set firewall.refresh_domains_output.chain='mangle_output'
-set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
 commit sing-box
 commit network
 commit firewall
 EOF
 
+for chain in prerouting output; do
+    uci -q batch <<EOF
+set firewall.save_domains_$chain=include
+set firewall.save_domains_$chain.type='nftables'
+set firewall.save_domains_$chain.path='/etc/getdomains/save-$chain.nft'
+set firewall.save_domains_$chain.position='chain-append'
+set firewall.save_domains_$chain.chain='mangle_$chain'
+EOF
+done
+# Flowtable entries cache routes and bypass the hooks which pin our decisions.
+uci set firewall.@defaults[0].flow_offloading='0'
+uci set firewall.@defaults[0].flow_offloading_hw='0'
+cat > /etc/getdomains/firewall-reload.sh <<'EOF'
+#!/bin/sh
+# firewall4 has recreated RAM-only sets; discard cached DNS answers as well.
+touch /tmp/getdomains-restart-pending
+/usr/libexec/getdomains-runtime reload || true
+EOF
+chmod 0755 /etc/getdomains/firewall-reload.sh
+uci set firewall.getdomains_dns_reload=include
+uci set firewall.getdomains_dns_reload.type='script'
+uci set firewall.getdomains_dns_reload.path='/etc/getdomains/firewall-reload.sh'
+uci set firewall.getdomains_dns_reload.fw4_compatible='1'
+uci commit firewall
+if [ -z "$(uci -q get dhcp.@dnsmasq[0].confdir)" ]; then
+    uci set dhcp.@dnsmasq[0].confdir='/tmp/dnsmasq.d'
+    touch /etc/getdomains/owns-confdir
+fi
+uci set dhcp.@dnsmasq[0].noresolv='0'
+uci set dhcp.@dnsmasq[0].resolvfile='/tmp/resolv.conf.d/resolv.conf.auto'
+uci commit dhcp
+
 if [ "$KILL_SWITCH" -eq 1 ]; then
     uci -q batch <<'EOF'
 set network.domain_kill_switch=rule
 set network.domain_kill_switch.name='domain_kill_switch'
-set network.domain_kill_switch.mark='0x1'
+set network.domain_kill_switch.mark='0x1/0x1'
 set network.domain_kill_switch.priority='110'
 set network.domain_kill_switch.action='unreachable'
 commit network
@@ -294,7 +404,12 @@ fi
 uci commit dhcp
 
 if [ "$WDNS_REQUESTED" -eq 1 ]; then
+    previous_options=$(uci -q get dhcp.wdns.dhcp_option || true)
     uci -q delete dhcp.wdns.dhcp_option || true
+    uci set dhcp.wdns=tag
+    for option in $previous_options; do
+        case $option in 6,*) ;; *) uci add_list "dhcp.wdns.dhcp_option=$option";; esac
+    done
     uci -q batch <<EOF
 set dhcp.wdns=tag
 add_list dhcp.wdns.dhcp_option='6,$WDNS'
@@ -314,12 +429,18 @@ elif [ "$(uci -q get dhcp.wdns)" = tag ]; then
 fi
 
 if [ -n "$WDNS" ]; then
+    uci -q delete network.wdns_tunnel.action || true
+    uci -q delete network.wdns_no_fallback.lookup || true
     uci -q batch <<EOF
 set network.wdns_tunnel=rule
 set network.wdns_tunnel.name='wdns_tunnel'
 set network.wdns_tunnel.dest='$WDNS/32'
 set network.wdns_tunnel.priority='80'
 set network.wdns_tunnel.lookup='vpn'
+set network.wdns_no_fallback=rule
+set network.wdns_no_fallback.dest='$WDNS/32'
+set network.wdns_no_fallback.priority='81'
+set network.wdns_no_fallback.action='unreachable'
 commit network
 EOF
 fi
@@ -340,121 +461,40 @@ exit 1
 EOF
 chmod 0755 /etc/hotplug.d/iface/30-vpnroute
 
-printf '%s\n' \
-    'Select the domain list:' \
-    '1) Russia inside' \
-    '2) Russia outside' \
-    '3) Ukraine'
-printf 'Selection [1]: '
-read -r COUNTRY
-case ${COUNTRY:-1} in
-    1) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/inside-dnsmasq-nfset.lst' ;;
-    2) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Russia/outside-dnsmasq-nfset.lst' ;;
-    3) DOMAINS_URL='https://raw.githubusercontent.com/itdoginfo/allow-domains/main/Ukraine/inside-dnsmasq-nfset.lst' ;;
-    *) red "Unknown selection"; exit 1 ;;
-esac
-
-DOMAIN_SET_TARGET='4#inet#fw4#vpn_domains'
-if [ "$IPV6_DENY" -eq 1 ]; then
-    DOMAIN_SET_TARGET='4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6'
-fi
-
-cat > /etc/init.d/getdomains <<EOF
+printf '%s\n' "$DOMAINS_URL" > /etc/getdomains/source-url
+cat > /etc/init.d/getdomains <<'EOF'
 #!/bin/sh /etc/rc.common
-START=99
+START=18
+USE_PROCD=1
 
-wait_for_download_path() {
-    url=\$1
-    host=\${url#*://}
-    host=\${host%%/*}
-    host=\${host%%:*}
-    waited=0
-
-    while [ "\$waited" -lt 30 ]; do
-        if ip link show dev tun0 >/dev/null 2>&1 && \
-            nslookup "\$host" >/dev/null 2>&1; then
-            return 0
-        fi
-        waited=\$((waited + 1))
-        sleep 1
-    done
-    logger -t getdomains "download path is not ready: interface=tun0 host=\$host"
-    return 1
+boot() {
+    /usr/libexec/getdomains-runtime prepare
+    start
 }
-
-download_domains() {
-    destination=/tmp/dnsmasq.d/domains.lst
-    downloaded="\${destination}.download.\$\$"
-    temporary="\${destination}.tmp.\$\$"
-    target='$DOMAIN_SET_TARGET'
-
-    rm -f "\$downloaded" "\$temporary"
-    wait_for_download_path '$DOMAINS_URL' || return 1
-    if ! curl -fL --interface tun0 --connect-timeout 10 --max-time 120 --retry 5 \\
-        --retry-delay 2 --max-filesize 2097152 '$DOMAINS_URL' -o "\$downloaded"; then
-        rm -f "\$downloaded" "\$temporary"
-        logger -t getdomains "domain list download through tun0 failed"
-        return 1
-    fi
-    if [ ! -s "\$downloaded" ] ||
-        [ "\$(wc -c < "\$downloaded")" -gt 2097152 ]; then
-        rm -f "\$downloaded" "\$temporary"
-        logger -t getdomains "downloaded domain list is empty or too large"
-        return 1
-    fi
-    if ! awk -v target="\$target" '
-        BEGIN { count = 0 }
-        /^nftset=\/[A-Za-z0-9_.-]+\/4#inet#fw4#vpn_domains\$/ {
-            sub(/4#inet#fw4#vpn_domains\$/, target)
-            print
-            count++
-            if (count > 20000) exit 2
-            next
-        }
-        { exit 1 }
-        END { if (count == 0) exit 1 }
-    ' "\$downloaded" > "\$temporary"; then
-        rm -f "\$downloaded" "\$temporary"
-        logger -t getdomains "downloaded domain list has an unexpected format"
-        return 1
-    fi
-    rm -f "\$downloaded"
-    if ! dnsmasq --conf-file="\$temporary" --test >/dev/null 2>&1; then
-        rm -f "\$temporary"
-        logger -t getdomains "downloaded domain list failed validation"
-        return 1
-    fi
-    if [ -f "\$destination" ] && cmp -s "\$temporary" "\$destination"; then
-        rm -f "\$temporary"
-        return 2
-    fi
-    mv -f "\$temporary" "\$destination"
+start_service() {
+    procd_open_instance
+    procd_set_param command /usr/libexec/getdomains-runtime watch
+    procd_set_param respawn
+    procd_close_instance
 }
-
-start() {
-    lock=/var/lock/getdomains.lock
-    if ! mkdir "\$lock" 2>/dev/null; then
-        logger -t getdomains "refresh is already running"
-        return 0
-    fi
-    cleanup() {
-        rm -rf "\$lock"
-        rm -f /tmp/dnsmasq.d/domains.lst.download.\$\$ \\
-            /tmp/dnsmasq.d/domains.lst.tmp.\$\$
-    }
-    trap cleanup 0
-    trap 'exit 1' HUP INT TERM
-    mkdir -p /tmp/dnsmasq.d
-    download_domains
-    result=\$?
-    [ "\$result" -eq 2 ] && return 0
-    [ "\$result" -eq 0 ] || return "\$result"
-    /etc/init.d/dnsmasq restart
+reload_service() {
+    /usr/libexec/getdomains-runtime reload
 }
+service_triggers() {
+    procd_add_reload_trigger dhcp firewall
+}
+refresh() {
+    /usr/libexec/getdomains-runtime refresh
+}
+EXTRA_COMMANDS="refresh"
+EXTRA_HELP="        refresh Download and apply the selected domain list"
 EOF
 chmod 0755 /etc/init.d/getdomains
 /etc/init.d/getdomains enable
-grep -q '/etc/init.d/getdomains start' /etc/crontabs/root 2>/dev/null || echo '0 4 * * * /etc/init.d/getdomains start' >> /etc/crontabs/root
+/etc/init.d/getdomains restart
+[ -f /etc/crontabs/root ] || touch /etc/crontabs/root
+sed -i '\|/etc/init.d/getdomains start|d;\|/etc/init.d/getdomains refresh|d' /etc/crontabs/root
+echo '0 4 * * * /etc/init.d/getdomains refresh' >> /etc/crontabs/root
 /etc/init.d/cron enable
 /etc/init.d/cron restart
 
@@ -502,8 +542,8 @@ if [ "$SINGBOX_STARTED" -eq 1 ]; then
         red "sing-box started but tun0 did not appear; skipping the initial domain-list download."
     fi
 fi
-if [ "$SINGBOX_READY" -eq 1 ] && ! /etc/init.d/getdomains start; then
-    red "The initial domain-list download through tun0 failed; run /etc/init.d/getdomains start after the tunnel is available."
+if [ "$SINGBOX_READY" -eq 1 ] && ! /etc/init.d/getdomains refresh; then
+    red "The initial domain-list download through tun0 failed; run /etc/init.d/getdomains refresh after the tunnel is available."
 fi
 
 green "Done. Validate /etc/sing-box/config.json, then run: service sing-box restart"

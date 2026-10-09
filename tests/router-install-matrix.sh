@@ -26,7 +26,19 @@ esac
 SOURCE_DIR=$RESULT_DIR/source-under-test
 INSTALLER=$SOURCE_DIR/getdomains-install.sh
 UNINSTALLER=$SOURCE_DIR/getdomains-uninstall.sh
-WDNS_ADDRESS=192.0.2.53
+WDNS_ADDRESS=${GETDOMAINS_TEST_WDNS:-192.0.2.53}
+ONLY_MASK=${GETDOMAINS_TEST_ONLY_MASK:-}
+case $ONLY_MASK in
+    ''|[0-9]|1[0-5]) ;;
+    *) echo 'GETDOMAINS_TEST_ONLY_MASK must be an integer from 0 to 15' >&2; exit 2;;
+esac
+if ! printf '%s\n' "$WDNS_ADDRESS" | awk -F. '
+    NF != 4 { exit 1 }
+    { for (i=1; i<=4; i++) if ($i !~ /^[0-9]+$/ || $i>255 ||
+        (length($i)>1 && substr($i,1,1)=="0")) exit 1 }
+'; then
+    echo 'GETDOMAINS_TEST_WDNS must be one IPv4 address' >&2; exit 2
+fi
 TEST_IPV4_OUTPUT=198.51.100.10
 TEST_IPV4_LAN=198.51.100.11
 TEST_IPV4_ROUTE=198.51.100.200
@@ -204,9 +216,9 @@ domain_list_valid() {
     ipv6=$1
     [ -s /tmp/dnsmasq.d/domains.lst ] || return 1
     if [ "$ipv6" -eq 1 ]; then
-        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6$'
+        pattern='^(server=/[A-Za-z0-9_.-]+/([0-9.]+|#)|nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6)$'
     else
-        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains$'
+        pattern='^(server=/[A-Za-z0-9_.-]+/([0-9.]+|#)|nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains)$'
     fi
     ! grep -Ev "$pattern" /tmp/dnsmasq.d/domains.lst >/dev/null 2>&1
 }
@@ -223,7 +235,7 @@ verify_or_recover_domain_list() {
     attempt=0
     while [ "$attempt" -lt 6 ]; do
         sleep 3
-        /etc/init.d/getdomains start >/dev/null 2>&1 || true
+        /etc/init.d/getdomains refresh >/dev/null 2>&1 || true
         if domain_list_valid "$ipv6"; then
             pass "domain-list download recovers after the tunnel becomes ready"
             return 0
@@ -352,6 +364,10 @@ test_marked_route_behavior() {
     else
         route_rc=$?
     fi
+    wdns_destination=$(uci -q get network.wdns_tunnel.dest)
+    if [ -n "$wdns_destination" ]; then
+        expect_absent "WDNS has no direct fallback without the vpn route" ip route get "${wdns_destination%/32}"
+    fi
     /etc/hotplug.d/iface/30-vpnroute >/dev/null 2>&1 || true
     if [ "$kill_switch" -eq 1 ]; then
         if [ "$route_rc" -ne 0 ]; then
@@ -426,14 +442,14 @@ assert_installed_mode() {
         "[ \"\$(uci -q get firewall.refresh_domains_prerouting.chain)\" = mangle_prerouting ] && [ \"\$(uci -q get firewall.refresh_domains_output.chain)\" = mangle_output ]"
     if runtime_refresh_rules_valid "$ipv6"; then pass "active nft rules contain the expected timeout refreshes"; else fail "active nft rules contain the expected timeout refreshes"; fi
     if domain_list_valid "$ipv6"; then pass "downloaded domain list targets the expected address families"; else fail "downloaded domain list targets the expected address families"; fi
-    expect_present "getdomains service embeds the selected source URL" grep -F "wait_for_download_path '$expected_url'" /etc/init.d/getdomains
-    expect_eq "cron contains one getdomains refresh" 1 "$(grep -c '/etc/init.d/getdomains start' /etc/crontabs/root)"
+    expect_present "getdomains stores the selected source URL" grep -Fx "$expected_url" /etc/getdomains/source-url
+    expect_eq "cron contains one getdomains refresh" 1 "$(grep -c '/etc/init.d/getdomains refresh' /etc/crontabs/root)"
     expect_eq "rt_tables contains one vpn entry" 1 "$(grep -c '^[[:space:]]*99[[:space:]]\+vpn$' /etc/iproute2/rt_tables)"
     expect_present "dnsmasq is running" sh -c "service dnsmasq status | grep -q running"
     expect_present "sing-box is running" sh -c "service sing-box status | grep -q running"
 
     if [ "$kill_switch" -eq 1 ]; then
-        expect_eq "kill-switch UCI rule is enabled" "rule|0x1|110|unreachable" \
+        expect_eq "kill-switch UCI rule is enabled" "rule|0x1/0x1|110|unreachable" \
             "$(uci -q get network.domain_kill_switch)|$(uci -q get network.domain_kill_switch.mark)|$(uci -q get network.domain_kill_switch.priority)|$(uci -q get network.domain_kill_switch.action)"
         expect_present "kill-switch policy rule is active" sh -c "ip rule show | grep -q '110:.*fwmark 0x1.*unreachable'"
     else
@@ -470,6 +486,8 @@ assert_installed_mode() {
             "$(uci -q get network.wdns_tunnel)|$(uci -q get network.wdns_tunnel.dest)|$(uci -q get network.wdns_tunnel.priority)|$(uci -q get network.wdns_tunnel.lookup)"
         expect_present "WDNS policy rule is active" sh -c \
             "ip rule show | grep -q '80:.*to $WDNS_ADDRESS.*lookup vpn'"
+        expect_present "WDNS no-fallback rule is active" sh -c \
+            "ip rule show | grep -q '81:.*to $WDNS_ADDRESS.*unreachable'"
     else
         expect_absent "WDNS tag is absent in an independently installed mode" uci -q get dhcp.wdns
         expect_absent "WDNS policy rule is absent in an independently installed mode" uci -q get network.wdns_tunnel
@@ -550,7 +568,7 @@ run_cli_validation() {
     end_case
 }
 
-for script_name in getdomains-install.sh getdomains-check.sh getdomains-uninstall.sh; do
+for script_name in getdomains-install.sh getdomains-check.sh getdomains-uninstall.sh getdomains-runtime.sh getdomains-compile.awk; do
     required=$INPUT_SOURCE_DIR/$script_name
     if [ ! -s "$required" ]; then
         echo "Missing test source: $required" >&2
@@ -598,6 +616,13 @@ expect_present "working sing-box configuration passes validation" sing-box check
 } > "$RESULT_DIR/metadata.txt"
 end_case
 
+if [ -n "$ONLY_MASK" ]; then
+    run_matrix_case "$ONLY_MASK"
+    printf '%s\n' "Assertions: $TOTAL total, $PASSED passed, $FAILED failed, $SKIPPED skipped"
+    [ "$FAILED" -eq 0 ]
+    exit $?
+fi
+
 run_cli_validation help 0 --help
 run_cli_validation unknown-option 2 --does-not-exist
 run_cli_validation wdns-missing-value 2 --wdns
@@ -622,6 +647,78 @@ if run_installer 1 "$CURRENT_CASE.install" --no-icanhazip --ipv6-deny --kill-swi
 else
     fail "second installation with identical options succeeds"
 fi
+end_case
+
+begin_case wdns-tag-option-preservation
+uci add_list dhcp.wdns.dhcp_option='42,192.0.2.123'
+uci -q batch <<'EOF'
+set dhcp.gd_tag_fixture=host
+set dhcp.gd_tag_fixture.name='gd-tag-fixture'
+set dhcp.gd_tag_fixture.mac='02:00:00:00:00:88'
+set dhcp.gd_tag_fixture.ip='192.0.2.88'
+add_list dhcp.gd_tag_fixture.tag='wdns'
+commit dhcp
+EOF
+if run_installer 1 "$CURRENT_CASE.install" --wdns "$WDNS_ADDRESS"; then
+    expect_present "updating WDNS retains unrelated DHCP options" sh -c \
+        "uci -q get dhcp.wdns.dhcp_option | grep -q '42,192.0.2.123'"
+    expect_eq "installation preserves an explicitly tagged lease" wdns "$(uci -q get dhcp.gd_tag_fixture.tag)"
+else
+    fail "WDNS option-preservation installation succeeds"
+fi
+uci -q delete dhcp.gd_tag_fixture
+uci del_list dhcp.wdns.dhcp_option='42,192.0.2.123'
+uci commit dhcp
+end_case
+
+begin_case wdns-uninstall-lease-preservation
+uci -q batch <<'EOF'
+set dhcp.gd_tag_fixture=host
+set dhcp.gd_tag_fixture.name='gd-tag-fixture'
+set dhcp.gd_tag_fixture.mac='02:00:00:00:00:88'
+set dhcp.gd_tag_fixture.ip='192.0.2.88'
+add_list dhcp.gd_tag_fixture.tag='wdns'
+add_list dhcp.gd_tag_fixture.tag='gd_other_fixture'
+set dhcp.gd_other_fixture=tag
+add_list dhcp.gd_other_fixture.dhcp_option='42,192.0.2.123'
+EOF
+anonymous_lease=$(uci add dhcp host)
+uci set "dhcp.$anonymous_lease.name=gd-anonymous-fixture"
+uci set "dhcp.$anonymous_lease.mac=02:00:00:00:00:89"
+uci set "dhcp.$anonymous_lease.ip=192.0.2.89"
+uci set "dhcp.$anonymous_lease.tag=wdns"
+# Anonymous UCI IDs can change when an earlier section is removed. This is
+# the last host fixture, so use its positional selector after creation.
+anonymous_lease='@host[-1]'
+uci commit dhcp
+expect_eq "WDNS definition exists before uninstall" tag "$(uci -q get dhcp.wdns)"
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.before"
+if reset_domain_routing > "$RESULT_DIR/logs/$CURRENT_CASE.uninstall.log" 2>&1; then
+    pass "uninstall with retained lease references succeeds and DNS recovers"
+else
+    fail "uninstall with retained lease references succeeds and DNS recovers"
+fi
+expect_absent "uninstall removes the WDNS tag definition" uci -q get dhcp.wdns
+expect_absent "uninstall removes the WDNS tunnel rule" uci -q get network.wdns_tunnel
+expect_absent "uninstall removes the WDNS fallback rule" uci -q get network.wdns_no_fallback
+expect_eq "named static lease retains all its tags" 'wdns gd_other_fixture' "$(uci -q get dhcp.gd_tag_fixture.tag)"
+expect_eq "anonymous static lease retains its WDNS reference" wdns "$(uci -q get "dhcp.$anonymous_lease.tag")"
+expect_eq "uninstall preserves the unrelated tag definition" 'tag|42,192.0.2.123' \
+    "$(uci -q get dhcp.gd_other_fixture)|$(uci -q get dhcp.gd_other_fixture.dhcp_option)"
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.after"
+expect_present "uninstall preserves every static lease in full" cmp -s "$RESULT_DIR/leases.before" "$RESULT_DIR/leases.after"
+if reset_domain_routing > "$RESULT_DIR/logs/$CURRENT_CASE.repeat-uninstall.log" 2>&1; then
+    pass "repeated uninstall tolerates retained references to the absent tag"
+else
+    fail "repeated uninstall tolerates retained references to the absent tag"
+fi
+expect_absent "repeated uninstall leaves the WDNS definition absent" uci -q get dhcp.wdns
+uci export dhcp | awk '$1 == "config" { host = ($2 == "host") } host' > "$RESULT_DIR/leases.after-repeat"
+expect_present "repeated uninstall preserves every static lease in full" cmp -s "$RESULT_DIR/leases.before" "$RESULT_DIR/leases.after-repeat"
+uci -q delete dhcp.gd_tag_fixture
+uci -q delete "dhcp.$anonymous_lease"
+uci -q delete dhcp.gd_other_fixture
+uci commit dhcp
 end_case
 
 begin_case reordered-and-duplicate-options

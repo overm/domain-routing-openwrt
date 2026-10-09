@@ -137,14 +137,7 @@ ipv6_deny_runtime_valid() {
 }
 
 domain_list_matches_mode() {
-    domain_file=/tmp/dnsmasq.d/domains.lst
-    [ -s "$domain_file" ] || return 1
-    if [ "$IPV6_DENY_ENABLED" -eq 1 ]; then
-        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains,6#inet#fw4#vpn_domains6$'
-    else
-        pattern='^nftset=/[A-Za-z0-9_.-]+/4#inet#fw4#vpn_domains$'
-    fi
-    ! grep -Ev "$pattern" "$domain_file" >/dev/null 2>&1
+    /usr/libexec/getdomains-runtime check
 }
 
 . /etc/os-release
@@ -183,7 +176,7 @@ else
     fail "$BAD_TUN_INTERFACE"
 fi
 if ip rule show 2>/dev/null | grep -q 'oif tun0.*lookup vpn'; then ok "tun0 download rule"; else fail "$BAD_DOWNLOAD_RULE"; fi
-if [ "$(uci -q get network.mark0x1.mark)" = 0x1 ] &&
+if [ "$(uci -q get network.mark0x1.mark)" = 0x1/0x1 ] &&
     [ "$(uci -q get network.mark0x1.priority)" = 100 ] &&
     [ "$(uci -q get network.mark0x1.lookup)" = vpn ] &&
     ip rule show 2>/dev/null | grep -q '100:.*fwmark 0x1.*lookup vpn'; then
@@ -192,22 +185,30 @@ else
     fail "$BAD_MARK_RULE"
 fi
 if [ "$(uci -q get dhcp.wdns)" = tag ]; then
-    wdns_option=$(uci -q get dhcp.wdns.dhcp_option)
-    wdns_address=${wdns_option#6,}
-    if [ "$wdns_address" != "$wdns_option" ] &&
-        [ "$(uci -q get network.wdns_tunnel)" = rule ] &&
+    wdns_address=
+    for option in $(uci -q get dhcp.wdns.dhcp_option); do
+        case $option in 6,*) wdns_address=${option#6,}; break;; esac
+    done
+    if [ -n "$wdns_address" ] &&
         [ "$(uci -q get network.wdns_tunnel.dest)" = "$wdns_address/32" ] &&
         [ "$(uci -q get network.wdns_tunnel.priority)" = 80 ] &&
         [ "$(uci -q get network.wdns_tunnel.lookup)" = vpn ] &&
-        ip rule show 2>/dev/null | grep -q "80:.*to $wdns_address.*lookup vpn"; then
+        [ "$(uci -q get network.wdns_no_fallback.dest)" = "$wdns_address/32" ] &&
+        [ "$(uci -q get network.wdns_no_fallback.priority)" = 81 ] &&
+        [ "$(uci -q get network.wdns_no_fallback.action)" = unreachable ] &&
+        ip rule show 2>/dev/null | grep -q "80:.*to $wdns_address.*lookup vpn" &&
+        ip rule show 2>/dev/null | grep -q "81:.*to $wdns_address.*unreachable"; then
         ok "$WDNS_RULE_ON"
     else
         fail "$BAD_WDNS_RULE"
     fi
 fi
+if [ -s /tmp/getdomains-wdns-guards ]; then
+    fail "WDNS transition guards remain active; wait for routing/DNS synchronization"
+fi
 if uci -q get network.domain_kill_switch >/dev/null; then
     if [ "$(uci -q get network.domain_kill_switch)" = rule ] &&
-        [ "$(uci -q get network.domain_kill_switch.mark)" = 0x1 ] &&
+        [ "$(uci -q get network.domain_kill_switch.mark)" = 0x1/0x1 ] &&
         [ "$(uci -q get network.domain_kill_switch.priority)" = 110 ] &&
         [ "$(uci -q get network.domain_kill_switch.action)" = unreachable ] &&
         [ -z "$(uci -q get network.domain_kill_switch.lookup)" ] &&
@@ -223,10 +224,10 @@ else
 fi
 if [ "$(uci -q get firewall.mark_local_domains.dest)" = '*' ] &&
     [ "$(uci -q get firewall.mark_local_domains.ipset)" = vpn_domains ] &&
-    [ "$(uci -q get firewall.mark_local_domains.set_mark)" = 0x1 ] &&
+    [ "$(uci -q get firewall.mark_local_domains.set_mark)" = 0x1/0x1 ] &&
     [ -z "$(uci -q get firewall.mark_local_domains.src)" ] &&
     nft list chain inet fw4 mangle_output 2>/dev/null |
-    grep -q 'ip daddr @vpn_domains.*meta mark set 0x0*1.*mark_local_domains'; then
+    grep -q 'ip daddr @vpn_domains.*meta mark set.*mark_local_domains'; then
     ok "router-local vpn_domains marking"
 else
     fail "$BAD_LOCAL_DOMAIN_RULE"
@@ -263,6 +264,39 @@ if domain_list_matches_mode; then
     ok "runtime domain list"
 else
     fail "$BAD_DOMAIN_LIST"
+fi
+for chain in prerouting output; do
+    if [ "$(uci -q get firewall.save_domains_$chain.position)" = chain-append ] &&
+        [ "$(uci -q get firewall.save_domains_$chain.chain)" = "mangle_$chain" ] &&
+        nft list chain inet fw4 "mangle_$chain" 2>/dev/null |
+            grep -q 'ct direction original.*ct mark set.*getdomains: save connection route' &&
+        nft list chain inet fw4 "mangle_$chain" 2>/dev/null |
+            grep -q 'ct direction original.*getdomains: restore connection route'; then
+        ok "connection route persistence: $chain"
+    else
+        fail "connection route persistence: $chain"
+    fi
+done
+if [ "$(uci -q get firewall.mark_domains.mark)" = 0x0/0x40000000 ] &&
+    [ "$(uci -q get firewall.mark_local_domains.mark)" = 0x0/0x40000000 ] &&
+    [ "$(uci -q get firewall.@defaults[0].flow_offloading)" = 0 ] &&
+    [ "$(uci -q get firewall.@defaults[0].flow_offloading_hw)" = 0 ]; then
+    ok "connection classification and disabled flow offloading"
+else
+    fail "connection classification / flow offloading conflict"
+fi
+provider_dns=1
+[ "$(uci -q get dhcp.@dnsmasq[0].noresolv)" = 0 ] || provider_dns=0
+[ "$(uci -q get dhcp.@dnsmasq[0].resolvfile)" = /tmp/resolv.conf.d/resolv.conf.auto ] || provider_dns=0
+for server in $(uci -q get dhcp.@dnsmasq[0].server); do
+    case $server in /*) ;; *) provider_dns=0;; esac
+done
+if [ "$provider_dns" -eq 1 ]; then ok "WAN DNS default"; else fail "WAN DNS default overridden in LuCI"; fi
+if service getdomains status 2>/dev/null | grep -q running; then
+    ok "LuCI DNS synchronization service"
+else fail "LuCI DNS synchronization service"; fi
+if logread -e dnsmasq 2>/dev/null | grep -Ei 'nftset.*(failed|error)|failed to add.*nft' >/dev/null; then
+    printf '[WARNING] dnsmasq reported nft set insertion errors; inspect logread (capacity/permissions).\n'
 fi
 if nft list chain inet fw4 input_tun 2>/dev/null |
     grep -q 'jump reject_from_tun'; then
