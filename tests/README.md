@@ -98,6 +98,10 @@ diagnostics. Verification restores the DHCP configuration saved by preparation.
 
 The [2026-10-09 report](results/openwrt-25.12.5-2026-10-09.md) records the split-DNS
 matrix, live TCP/LAN lifecycle, actual LuCI add/edit/delete and reboot checks.
+The [real-tunnel follow-up](results/openwrt-25.12.5-real-tunnel-2026-10-09.md)
+records the complete matrix with a user-provided proxy and WDNS, plus captured
+DNS/HTTPS traffic from the router and LAN. Private configurations and captures
+are retained outside the repository.
 Earlier reports under `tests/results` describe their own recorded revisions.
 
 Run on the router:
