@@ -18,6 +18,90 @@ union, local records, IPv6, injection/size limits, stale-rule deletion, concurre
 LuCI snapshots, failed downloads/validation/seeding/restarts, retry and boot restore.
 They do not validate nft syntax or kernel behavior; that requires the target.
 
+## Offload lifecycle research fixtures
+
+These are opt-in prototypes, not an offload installation option. Read
+[the design and limitations](../docs/OFFLOAD_LIFECYCLE_RESEARCH.md) and
+[the measured target report](results/offload-lifecycle-2026-10-10.md) first.
+The physical experiment is specific to the tested Filogic Ethernet topology.
+It stops WAN and, with `--stop-parent`, all Ethernet ports, disconnects management,
+can abort existing TCP connections, and may reboot the device on failure.
+Do not run it on a development host or a router with concurrent configuration
+changes. No driver/firmware changes or package installation are automated.
+
+Prerequisites on the expendable target: libnftables, full `ip`, conntrack,
+veth/network namespace support, `setsid`, PPE debugfs for both engines, an
+already configured production project with global offloading disabled, and
+access to local recovery. Build `tests/prototypes/offload-owner.c` using the
+matching OpenWrt SDK (`make -C tests/prototypes CC="$TARGET_CC"`); copy only the
+resulting owner binary and the shell fixtures to the device. Do not substitute
+host libraries on the router. Python 3 and Paramiko are needed on the test host.
+SSH host keys must already be independently verified in `--known-hosts`.
+
+On the router, create a fresh persistent backup and arm the one-hour watchdog:
+
+```sh
+GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1 sh /tmp/router-lifecycle-setup.sh \
+  setup /root/getdomains-lifecycle-lab
+```
+
+The setup verifies disabled global offloading and empty PPE, saves the nine
+configuration/program files it may restore plus the package inventory, and
+creates a private veth pair. Use `rearm` only after reboot with the saved file
+hashes unchanged; it refuses an existing `/tmp/gd-life-lab` directory. Upload
+the binary to `/tmp/gd-life-lab/owner` and `offload-prepare.sh` to
+`/tmp/gd-life-lab/prepare.sh`, then make them executable. Re-upload after reboot.
+All paths and target credentials are supplied privately. For example, from a
+POSIX test host with its actual environment variables already set:
+
+```sh
+export GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1
+python3 -B tests/offload-owner-faults.py \
+  --backup /root/getdomains-lifecycle-lab --known-hosts "$LAB_KNOWN_HOSTS" \
+  --output "$LAB_RESULTS/owner.json" --private-evidence-dir "$LAB_PRIVATE/owner"
+python3 -B tests/offload-revoke-load.py \
+  --backup /root/getdomains-lifecycle-lab --known-hosts "$LAB_KNOWN_HOSTS" \
+  --lan-ip "$LAB_LAN_IP" --wan-ip "$LAB_WAN_PEER_IP" \
+  --flows 128 --cycles 2 --protocol udp --stop-parent --post-seconds 45 \
+  --output "$LAB_RESULTS/udp.json" --private-evidence-dir "$LAB_PRIVATE/udp"
+python3 -B tests/offload-luci-preapply.py \
+  --backup /root/getdomains-lifecycle-lab --known-hosts "$LAB_KNOWN_HOSTS" \
+  --output "$LAB_RESULTS/luci.json" --private-evidence-dir "$LAB_PRIVATE/luci"
+```
+
+Provide `GETDOMAINS_TEST_HOST` and `GETDOMAINS_TEST_PASSWORD` in the environment.
+The physical test host needs two independently addressed physical links: LAN
+to the router's tested `lan3` port, and WAN-side to its upstream network. The
+harness creates only narrowly scoped test NAT/filter/admission rules and sends
+independent frames from both sides. It shuffles large-load tuple ports to avoid
+an artificial PPE hash concentration. TCP uses simultaneous open; Windows
+receiver sets are sharded. Confirm port availability and topology yourself.
+Use `--guardian-crash` for active-worker death plus native firewall reload;
+use `--hold-through-policy` with `--stop-parent` to apply the new lab guard
+locally before link restoration (also upload `offload-resume.sh` to
+`/tmp/gd-life-lab/resume.sh`).
+`--timeout-probe` forces the unsafe-fallback rejection path. A failed physical
+test deliberately retains the registered flowtable and may leave WAN stopped.
+Use recovery instead of manually deleting that flowtable.
+
+The LuCI suite temporarily adds a separate controller/menu and wraps fw4,
+tests actual authenticated HTTP apply endpoints and rollback, then restores
+the files. Its preparation callback is instrumented with hardware disabled;
+this test alone does not prove physical revocation or complete RPC coverage.
+Raw private evidence contains device addresses and session identifiers. Review
+the address-free summaries before publication; never commit private evidence.
+
+Finish on the router using the saved recovery script:
+
+```sh
+GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1 sh /tmp/router-lifecycle-setup.sh \
+  restore /root/getdomains-lifecycle-lab
+```
+
+After reboot, verify saved hashes/package inventory, disabled global offload,
+empty PPE, absence of lab tables/processes/interfaces, and the real DNS/tunnel
+configuration. A watchdog reboot is recovery, not a successful live barrier.
+
 `router-install-matrix.sh` is a destructive integration suite for an expendable
 OpenWrt 25+ router. It repeatedly removes and installs domain routing while
 preserving `/etc/sing-box/config.json` and verifying that its SHA-256 never

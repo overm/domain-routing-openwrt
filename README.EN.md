@@ -418,6 +418,10 @@ source must be reachable through the configured tunnel. Configure and start
 sing-box before the first refresh. If the installer cannot complete the initial
 download, run `/etc/init.d/getdomains refresh` manually after the tunnel starts.
 
+Experimental hardware-offload lifecycle fixtures and their limitations are
+documented in the [offload lifecycle research](docs/OFFLOAD_LIFECYCLE_RESEARCH.md).
+Production scripts do not install them; flow offloading remains disabled.
+
 ## License
 
 GNU General Public License v3.0.

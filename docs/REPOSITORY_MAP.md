@@ -31,6 +31,7 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 | `tests/router-dns-lifecycle.sh` | Destructive DNS upstream and live TCP conntrack/packet-mark tests, including simulated LAN traffic. |
 | `tests/router-boot-restore.sh` | Two-stage destructive reboot test for cached DNS, manual local records, monitor and WDNS guards. |
 | `tests/test_*.py` | Host-safe compiler and transaction tests with mocked device boundaries. |
+| `tests/prototypes/`, `tests/offload-*.py`, `tests/offload_lifecycle_support.py` | Opt-in destructive offload lifecycle research fixtures; not installed by production scripts. See `docs/OFFLOAD_LIFECYCLE_RESEARCH.md`. |
 | `tests/results/` | Reviewed reports and per-case summaries from named OpenWrt testbeds; raw device logs and credentials are never committed. |
 
 ## Data flow
