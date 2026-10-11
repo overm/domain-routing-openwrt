@@ -17,8 +17,9 @@ IPV6_DENY=0
 KILL_SWITCH=0
 WDNS=
 WDNS_REQUESTED=0
+OFFLOAD_MODE=medium
 usage() {
-    printf 'Usage: %s [--no-icanhazip] [--ipv6-deny] [--kill-switch] [--wdns DNS_IPV4]\n' "$0"
+    printf 'Usage: %s [--no-icanhazip] [--ipv6-deny] [--kill-switch] [--wdns DNS_IPV4] [--offload medium|strict|disable]\n' "$0"
 }
 valid_ipv4() {
     printf '%s\n' "$1" | awk -F. '
@@ -35,6 +36,11 @@ while [ "$#" -gt 0 ]; do
         --no-icanhazip) ADD_IP_CHECK_DOMAIN=0 ;;
         --ipv6-deny) IPV6_DENY=1 ;;
         --kill-switch) KILL_SWITCH=1 ;;
+        --offload)
+            [ "$#" -ge 2 ] || { red "--offload requires medium, strict or disable"; exit 2; }
+            case $2 in medium|strict|disable) OFFLOAD_MODE=$2;; *) red "Invalid offload mode: $2"; exit 2;; esac
+            shift
+            ;;
         --wdns)
             [ "$#" -ge 2 ] || { red "--wdns requires an IPv4 address"; usage >&2; exit 2; }
             WDNS=$2
@@ -93,7 +99,7 @@ case $(uci -q get dhcp.@dnsmasq[0].confdir || true) in
 esac
 green "Refreshing apk indexes"
 apk update
-apk add curl sing-box dnsmasq-full ip-full nano
+apk add curl sing-box dnsmasq-full ip-full nano conntrack
 
 AVAILABLE_SPACE=$(df -k / | awk 'NR == 2 { print $4 }')
 if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
@@ -102,13 +108,13 @@ if [ "${AVAILABLE_SPACE:-0}" -lt 4096 ]; then
 fi
 
 SCRIPT_BASE_URL=${GETDOMAINS_SCRIPT_BASE_URL:-https://raw.githubusercontent.com/overm/domain-routing-openwrt/master}
-for script in getdomains-check getdomains-uninstall getdomains-runtime; do
+for script in getdomains-check getdomains-uninstall getdomains-runtime getdomains-offload getdomains-offload-service; do
     temporary="/tmp/${script}.sh.$$"
     rm -f "$temporary"
     if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 \
         --retry-delay 2 "$SCRIPT_BASE_URL/${script}.sh" -o "$temporary" || \
         ! sh -n "$temporary"; then
-        rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
+        rm -f /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$ /tmp/getdomains-offload.sh.$$ /tmp/getdomains-offload-service.sh.$$
         support_download_error "${script}.sh"
         exit 1
     fi
@@ -117,24 +123,110 @@ temporary=/tmp/getdomains-compile.awk.$$
 if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 --retry-delay 2 \
     "$SCRIPT_BASE_URL/getdomains-compile.awk" -o "$temporary" ||
     ! awk -f "$temporary" /dev/null /dev/null >/dev/null; then
-    rm -f "$temporary" /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$
+    rm -f "$temporary" /tmp/getdomains-check.sh.$$ /tmp/getdomains-uninstall.sh.$$ /tmp/getdomains-runtime.sh.$$ /tmp/getdomains-offload.sh.$$ /tmp/getdomains-offload-service.sh.$$
     support_download_error getdomains-compile.awk
     exit 1
 fi
 mkdir -p /usr/libexec
-mv -f "$temporary" /usr/libexec/getdomains-compile.awk
-for script in getdomains-check getdomains-uninstall getdomains-runtime; do
+cleanup_support() {
+    for script in getdomains-check getdomains-uninstall getdomains-runtime getdomains-offload getdomains-offload-service; do
+        rm -f "/tmp/$script.sh.$$"
+    done
+    for resource in getdomains-compile.awk getdomains-offload-luci.uc getdomains-offload-job.uc getdomains-offload-setup.uc getdomains-offload-menu.json getdomains-offload.js getdomains-offload-status.js getdomains-offload-owner getdomains-offload-owner.sha256; do
+        rm -f "/tmp/$resource.$$"
+    done
+}
+trap cleanup_support 0
+# Stage every offload resource before changing UCI or replacing device helpers.
+for resource in getdomains-offload-luci.uc getdomains-offload-job.uc getdomains-offload-setup.uc getdomains-offload-menu.json getdomains-offload.js getdomains-offload-status.js; do
+    temporary="/tmp/$resource.$$"
+    if ! curl -fL --connect-timeout 10 --max-time 120 --retry 5 --retry-delay 2 "$SCRIPT_BASE_URL/$resource" -o "$temporary"; then
+        support_download_error "$resource"; exit 1
+    fi
+    case $resource in
+        *.uc) ucode -c "$temporary" >/dev/null || { support_download_error "$resource"; exit 1; };;
+        *.json) jsonfilter -i "$temporary" -e '@' >/dev/null || { support_download_error "$resource"; exit 1; };;
+    esac
+done
+OWNER_REQUIRED=0
+if [ "$OFFLOAD_MODE" != disable ] && [ "$KILL_SWITCH" = 0 ] &&
+    [ "$(jsonfilter -i /etc/board.json -e '@.model.id')" = xiaomi,mi-router-ax3000t ] &&
+    [ "$(uname -m)" = aarch64 ] && [ "$(uname -r)" = 6.12.94 ] &&
+    nft --version | grep -q 'v1.1.6 '; then
+    OWNER_REQUIRED=1
+    owner_url=${GETDOMAINS_OFFLOAD_OWNER_URL:-$SCRIPT_BASE_URL/offload/bin/aarch64_cortex-a53/getdomains-offload-owner}
+    curl -fL --connect-timeout 10 --max-time 120 "$owner_url" -o /tmp/getdomains-offload-owner.$$ || exit 1
+    curl -fL --connect-timeout 10 --max-time 120 "$owner_url.sha256" -o /tmp/getdomains-offload-owner.sha256.$$ || exit 1
+    digest=$(cat /tmp/getdomains-offload-owner.sha256.$$)
+    case $digest in ''|*[!0-9a-f]*) red 'Invalid offload checksum'; exit 1;; esac
+    [ "${#digest}" = 64 ] &&
+        [ "$digest" = "$(sha256sum /tmp/getdomains-offload-owner.$$ | awk '{ print $1 }')" ] ||
+        { red 'Offload checksum mismatch'; exit 1; }
+    chmod 0755 /tmp/getdomains-offload-owner.$$
+    [ "$(/tmp/getdomains-offload-owner.$$ --version)" = 'getdomains-offload-owner 1' ] || { red 'Offload owner failed ABI validation'; exit 1; }
+fi
+if [ "$OFFLOAD_MODE" = strict ] && [ -f /www/luci-static/resources/ui.js ]; then
+    ucode /tmp/getdomains-offload-setup.uc.$$ check || { red 'Unsupported LuCI apply transport; no router configuration was changed'; exit 1; }
+fi
+DEFER_APPLY=0
+if [ -S /tmp/getdomains-offload/owner.sock ]; then
+    # Mode changes are reinstall + reboot. Keep the existing table registered
+    # and retain the live network policy until that reboot clears the hardware.
+    DEFER_APPLY=1
+    touch /tmp/getdomains-offload/maintenance
+    /etc/init.d/getdomains stop || true
+    /usr/libexec/getdomains-offload-owner --client CLOSE >/dev/null || true
+elif [ "$(uci -q get firewall.@defaults[0].flow_offloading || true)" = 1 ] ||
+     [ "$(uci -q get firewall.@defaults[0].flow_offloading_hw || true)" = 1 ] ||
+     { [ -r /sys/kernel/debug/ppe0/bind ] &&
+       cat /sys/kernel/debug/ppe0/bind /sys/kernel/debug/ppe1/bind 2>/dev/null | grep -q ' BND '; }; then
+    # An older/global flowtable has no controller ownership. Its replacement
+    # cannot safely retire cached hardware decisions; defer until reboot too.
+    DEFER_APPLY=1
+    /etc/init.d/getdomains stop 2>/dev/null || true
+fi
+mv -f /tmp/getdomains-compile.awk.$$ /usr/libexec/getdomains-compile.awk
+for script in getdomains-check getdomains-uninstall getdomains-runtime getdomains-offload getdomains-offload-service; do
     temporary="/tmp/${script}.sh.$$"
     chmod 0755 "$temporary"
-    if [ "$script" = getdomains-runtime ]; then
+    if [ "$script" = getdomains-offload-service ]; then
+        mv -f "$temporary" /etc/init.d/getdomains-offload
+    elif [ "$script" = getdomains-runtime ] || [ "$script" = getdomains-offload ]; then
         mkdir -p /usr/libexec
-        mv -f "$temporary" /usr/libexec/getdomains-runtime
+        mv -f "$temporary" "/usr/libexec/$script"
     else
         mv -f "$temporary" "/usr/bin/$script"
     fi
 done
+for resource in getdomains-offload-job.uc getdomains-offload-setup.uc; do mv -f "/tmp/$resource.$$" "/usr/libexec/$resource"; done
+mkdir -p /usr/share/ucode/luci/controller/admin /usr/share/luci/menu.d /www/luci-static/resources
+mv -f /tmp/getdomains-offload-luci.uc.$$ /usr/share/ucode/luci/controller/admin/getdomains_offload.uc
+mv -f /tmp/getdomains-offload-menu.json.$$ /usr/share/luci/menu.d/zz-getdomains-offload.json
+mv -f /tmp/getdomains-offload.js.$$ /www/luci-static/resources/getdomains-offload.js
+mkdir -p /www/luci-static/resources/view
+mv -f /tmp/getdomains-offload-status.js.$$ /www/luci-static/resources/view/getdomains_offload.js
+[ "$OWNER_REQUIRED" = 0 ] || mv -f /tmp/getdomains-offload-owner.$$ /usr/libexec/getdomains-offload-owner
+cleanup_support
+trap - 0
 
 mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/getdomains /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
+printf '%s\n' "$OFFLOAD_MODE" > /etc/getdomains/offload-mode
+cat /proc/sys/kernel/random/boot_id > /etc/getdomains/offload-reboot-required
+if [ ! -f /etc/getdomains/fw4.original ]; then cp -p /sbin/fw4 /etc/getdomains/fw4.original; fi
+cat > /sbin/fw4 <<'EOF'
+#!/bin/sh
+# getdomains offload lifecycle wrapper; queries always use stock fw4.
+exec /usr/libexec/getdomains-offload before-fw4 "$@"
+EOF
+chmod 0755 /sbin/fw4
+if [ -f /www/luci-static/resources/ui.js ]; then
+    ucode /usr/libexec/getdomains-offload-setup.uc install || {
+        [ "$OFFLOAD_MODE" != strict ] || exit 1
+        red 'LuCI asynchronous transport unavailable; medium still requires reboot after apply.'
+    }
+fi
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.* /tmp/luci-modulecache/*
+/etc/init.d/getdomains-offload enable
 for option in flow_offloading flow_offloading_hw; do
     if [ ! -f "/etc/getdomains/$option.previous" ]; then
         uci -q get "firewall.@defaults[0].$option" > "/etc/getdomains/$option.previous" ||
@@ -491,7 +583,7 @@ EXTRA_HELP="        refresh Download and apply the selected domain list"
 EOF
 chmod 0755 /etc/init.d/getdomains
 /etc/init.d/getdomains enable
-/etc/init.d/getdomains restart
+[ "$DEFER_APPLY" = 1 ] || /etc/init.d/getdomains restart
 [ -f /etc/crontabs/root ] || touch /etc/crontabs/root
 sed -i '\|/etc/init.d/getdomains start|d;\|/etc/init.d/getdomains refresh|d' /etc/crontabs/root
 echo '0 4 * * * /etc/init.d/getdomains refresh' >> /etc/crontabs/root
@@ -503,6 +595,11 @@ read -r EDIT_SINGBOX || EDIT_SINGBOX=n
 case ${EDIT_SINGBOX:-n} in
     y|Y|yes|YES|Yes) nano /etc/sing-box/config.json ;;
 esac
+
+if [ "$DEFER_APPLY" = 1 ]; then
+    green "Settings saved. Mode: $OFFLOAD_MODE. Reboot to complete reinstallation; the current network policy remains active until reboot."
+    exit 0
+fi
 
 # Apply netifd and firewall changes before starting sing-box. Reloading the
 # network after sing-box has created tun0 can leave the service needing another
@@ -547,3 +644,4 @@ if [ "$SINGBOX_READY" -eq 1 ] && ! /etc/init.d/getdomains refresh; then
 fi
 
 green "Done. Validate /etc/sing-box/config.json, then run: service sing-box restart"
+green "Offload mode: $OFFLOAD_MODE. Reboot to activate it. Mode changes require reinstallation and reboot."

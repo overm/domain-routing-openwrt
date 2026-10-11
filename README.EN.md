@@ -14,7 +14,7 @@ been removed.
 The launch command downloads the script with BusyBox's bundled `wget`. The
 standalone installer checks the OpenWrt major version and the presence of `apk`
 before changing the device. It installs `curl`, `sing-box`, `dnsmasq-full`,
-`ip-full`, and `nano`, creates the `tun0` firewall/routing configuration, saves
+`ip-full`, `nano`, and `conntrack`, creates the `tun0` firewall/routing configuration, saves
 the diagnostics and removal commands in `/usr/bin`, and preserves an existing
 `/etc/sing-box/config.json`. At the end of installation, the script offers to
 open that configuration in `nano`, validates it, and, if it is valid, restarts
@@ -54,6 +54,62 @@ disappears. IPv6 is not routed into the tunnel and is also allowed directly.
 This is the fail-open mode.
 
 ### Additional options
+
+#### `--offload medium|strict|disable`
+
+**medium** is the default. **Reboot after installation, reinstallation and every
+mode change.** The new offload configuration is not considered applied until
+that reboot. When reinstalling with an active owner, the running network policy
+remains in place until reboot; the new settings are already saved to disk.
+After boot, admission waits for WAN/firewall startup to settle. If WAN is not
+available yet, traffic continues through ordinary routing without hardware
+acceleration.
+
+| Mode | Behavior |
+| --- | --- |
+| `medium` (default) | Accelerates eligible direct IPv4 NAT connections. **Save & Apply followed by reboot** guarantees application of changed policy. |
+| `strict` | Closes admission, revokes hardware decisions and clears conntrack before supported policy changes; applies settings and restores connectivity. |
+| `disable` | Software and hardware flow offloading are disabled. |
+
+```sh
+sh /tmp/getdomains-install.sh --offload strict
+# After installation completes:
+reboot
+```
+
+The hardware profile is currently limited to **Xiaomi AX3000T / MT7981,
+OpenWrt 25.12.5, Linux 6.12.94, nftables 1.1.6**, using `br-lan → wan`.
+Other platforms and incompatible policies retain normal software routing.
+The profile remains experimental; outstanding physical load and long-duration
+qualification is listed in [offload documentation](docs/OFFLOAD_MODES.md).
+Strict installation checks the native LuCI views and aborts before network
+configuration changes if their installed version is not recognized.
+
+Tunnel, IPv6, DNAT and additionally marked connections are not admitted to the
+private flowtable. `--kill-switch` disables hardware acceleration entirely,
+including direct connections, regardless of selected mode. The global LuCI
+flow-offloading switches are managed by the project and remain off.
+
+In `medium`, automatic WAN-address, route or gateway-MAC changes may also leave
+old hardware decisions. The controller closes new admission and reports that a
+reboot is required; this does not revoke existing flows. Their passive expiry
+has no guaranteed bound. With unchanged configuration, routine DNS/list updates
+preserve existing connection decisions and do not require reboot.
+
+`strict` supports Save & Apply, interface buttons and network/firewall/sing-box
+restart on the native LuCI pages, the `fw4` wrapper and `getdomains-offload submit`
+for root operations. Critical apply is asynchronous: wired LAN/WAN briefly stop
+and existing IPv4 connections break. Native LuCI confirmation and automatic
+rollback remain; hardware admission stays closed until confirmation. After
+unconfirmed rollback, only a successful explicit critical apply or reboot
+reopens it. Direct
+UCI/netifd RPC, arbitrary nft commands and third-party managers have no
+**pre-change** guarantee. The observer detects some changes after the event;
+it cannot provide an atomic barrier for arbitrary external operations.
+
+Read status under **Status → Domain routing acceleration** or with
+`/usr/libexec/getdomains-offload status`. Local DNS records, CNAME and **DNS → IP Sets**
+continue through dnsmasq and preserve existing connection routing decisions.
 
 #### `--no-icanhazip`
 
@@ -200,8 +256,8 @@ change an existing tracked connection's decision. New connections use current
 set membership. Only the original direction restores the route bit; replies
 are not sent into the tunnel. Marks reserve `0x1` for routing and `0x40000000`
 for classification, preserving other bits. Avoid assigning these bits to another
-policy service. The installer disables software/hardware flow offloading,
-which bypasses these hooks. Removal restores prior DNS/offloading options if
+policy service. The installer disables global flow offloading; eligible direct
+NAT acceleration is managed by `--offload`. Removal restores prior DNS/offloading options if
 they still have the values set by the installer. Installation, tunnel outages,
 conntrack flushes and manual routing changes can still interrupt connections.
 
@@ -291,6 +347,10 @@ The uninstaller removes policy-routing artifacts but deliberately keeps the
 sing-box package and configuration. The installer downloads both commands so
 they remain available locally after `/tmp` is cleared; uninstalling removes the
 commands as well.
+
+When a hardware-table owner is running, removal finishes with an automatic
+reboot to clear cached hardware decisions. Native LuCI and firewall entry points
+are restored first. Save any other pending changes beforehand.
 
 The `wdns` DHCP tag definition and its policy-routing rules are removed. Static
 DHCP leases and all their tags, including references to `wdns`, are preserved.
@@ -420,7 +480,8 @@ download, run `/etc/init.d/getdomains refresh` manually after the tunnel starts.
 
 Experimental hardware-offload lifecycle fixtures and their limitations are
 documented in the [offload lifecycle research](docs/OFFLOAD_LIFECYCLE_RESEARCH.md).
-Production scripts do not install them; flow offloading remains disabled.
+They are separate from the installed controller. See [offload modes](docs/OFFLOAD_MODES.md)
+for supported behavior, limitations and reproducible builds.
 
 ## License
 

@@ -1,0 +1,39 @@
+{
+  "protocol": "tcp",
+  "cases": [
+    {
+      "case": "direct-nat",
+      "tracked": 8,
+      "direct_mark": 8,
+      "vpn_mark": 0,
+      "vpn_hw_offload": 0,
+      "hw_offload": 8,
+      "ppe_bound": 5,
+      "sent": 3120,
+      "received": 3104
+    },
+    {
+      "case": "existing-direct-remains-sticky",
+      "tracked": 8,
+      "direct_mark": 8,
+      "vpn_mark": 0,
+      "vpn_hw_offload": 0,
+      "hw_offload": 8,
+      "ppe_bound": 5,
+      "sent": 784,
+      "received": 784
+    },
+    {
+      "case": "new-selected-not-accelerated",
+      "tracked": 16,
+      "direct_mark": 8,
+      "vpn_mark": 8,
+      "vpn_hw_offload": 0,
+      "hw_offload": 5,
+      "ppe_bound": 5,
+      "sent": 752,
+      "received": 735
+    }
+  ],
+  "status": "passed"
+}

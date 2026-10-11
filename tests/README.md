@@ -18,6 +18,86 @@ union, local records, IPv6, injection/size limits, stale-rule deletion, concurre
 LuCI snapshots, failed downloads/validation/seeding/restarts, retry and boot restore.
 They do not validate nft syntax or kernel behavior; that requires the target.
 
+## Installed offload modes
+
+Read [the supported contract](../docs/OFFLOAD_MODES.md). The initial hardware
+profile is experimental and specific to AX3000T / kernel 6.12.94 / nft 1.1.6.
+Host tests also cover mode parsing, physical-barrier ordering, generation
+fencing, failed commands even inside shell conditionals, closed admission during
+confirmation, queue deadlines, and the real JavaScript apply/command transport.
+The JavaScript suite runs 16 assertions with Node.js; missing Node is a skip.
+
+Build the production and isolated owner with the matching musl SDK as documented
+in [BUILD.md](../offload/BUILD.md). Never install the isolated test binary.
+The following host harnesses require Python/Paramiko, an independently verified
+SSH host key, explicit `GETDOMAINS_ALLOW_DESTRUCTIVE_TESTS=1`, and target/password
+in `GETDOMAINS_TEST_HOST` / `GETDOMAINS_TEST_PASSWORD`. Keep raw logs private.
+
+```sh
+python3 -B tests/router-offload-modes.py stage --known-hosts "$LAB_KNOWN_HOSTS" --private-evidence-dir "$LAB_PRIVATE/deploy"
+python3 -B tests/router-offload-modes.py install --mode strict --known-hosts "$LAB_KNOWN_HOSTS" --private-evidence-dir "$LAB_PRIVATE/deploy"
+python3 -B tests/router-offload-modes.py reboot --known-hosts "$LAB_KNOWN_HOSTS" --private-evidence-dir "$LAB_PRIVATE/deploy"
+python3 -B tests/router-offload-unit.py --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/ucode.json" --private-evidence-dir "$LAB_PRIVATE/ucode"
+python3 -B tests/router-offload-owner.py --binary offload/owner-test --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/owner.json" --private-evidence-dir "$LAB_PRIVATE/owner"
+python3 -B tests/router-offload-luci.py --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/luci.json" --private-evidence-dir "$LAB_PRIVATE/luci"
+python3 -B tests/router-offload-commands.py --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/commands.json" --private-evidence-dir "$LAB_PRIVATE/commands"
+python3 -B tests/router-offload-matrix.py --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/modes.json" --private-evidence-dir "$LAB_PRIVATE/modes"
+python3 -B tests/router-offload-revoke.py --client-ip "$LAB_LAN_IP" --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/revoke.json" --private-evidence-dir "$LAB_PRIVATE/revoke"
+python3 -B tests/offload-nat-load.py --client-ip "$LAB_LAN_IP" --protocol udp --flows 8 --learn-target --known-hosts "$LAB_KNOWN_HOSTS" --output "$LAB_RESULTS/nat.json" --private-evidence-dir "$LAB_PRIVATE/nat"
+```
+
+`stage` takes a persistent backup and arms recovery; never replace an existing
+backup. Use `upload` for later revisions. Install/reboot tests interrupt the
+router. The installed strict apply tests disconnect Ethernet and may clear all
+IPv4 connections or reboot on failure. The ucode fixture mocks all mutations;
+only private fixture copies are written. Owner faults run in a network namespace
+and use a marker callback instead of reboot. Neither proves physical PPE use.
+The NAT fixture must originate on a physical LAN client whose gateway is the
+target, and asserts real HW_OFFLOAD/PPE entries. `--protocol tcp` uses framed DNS
+over TCP. Public DNS load is capped at 500 queries/second; large-flow hardware
+qualification requires a controlled WAN peer instead. A low-rate NTP probe
+(`--service ntp --expect connectivity`) verifies forwarding without claiming
+PPE binding. Small flows can retain HW_OFFLOAD while remaining physically unbound.
+The revoke fixture pipelines a real TCP stream, applies/removes a scoped reject
+rule through the root controller, and requires old PPE entries gone, both old/new
+TCP rejected, connectivity recovered and no reboot. These do not measure throughput.
+Use `--fault worker`, `--fault standby` or `--fault keeper` to kill an installed
+holder with a physically accelerated TCP flow, require its old entries drained,
+and verify replenishment without reboot before the policy test. `--mode medium`
+records whether the old stream survives a rule change before reboot, then
+requires the new rejection and subsequent rule removal to work after reboot.
+`--fault supervisor` kills the installed observer, requires an actual emergency
+reboot and fresh hardware, then repeats the policy test. It verifies recovery,
+not uninterrupted forwarding or zero packets during the failure window.
+`router-offload-resources.py` samples the supervisor and three holders for ten
+seconds under quiet load, including CPU time of reaped children, RSS, optional
+PSS and file descriptors. SSH measurement itself adds activity; this is not a
+bulk-load benchmark. RSS shares pages across forks and must not be summed as
+unique memory; use PSS when available.
+The command suite exercises real authenticated firewall reload, WAN down/up,
+network reload and sing-box restart; WAN recovery is checked through netifd.
+Close other LuCI browser tabs while running the raw HTTP rollback suite: native
+`ui.changes` can resume and confirm an outstanding apply when a page loads.
+Such an external confirmation invalidates an intentionally unconfirmed test.
+`router-offload-fallback.py` runs in strict with kill-switch or another verified
+software-only profile. It checks native apply/rollback without an owner, absence
+of a stale asynchronous lock, subsequent apply, service transport and diagnostics.
+
+Repeat installation with medium/disable and with kill-switch, reboot after each
+transition, check diagnostics, native views and table absence when disabled.
+`router-offload-uninstall.py` tests removal with a live owner, the automatic
+reboot, restoration of native LuCI/fw4 files, and removal of the `wdns` definition
+while retaining static lease tags. It requires the native-file backups created
+by installation. Finish with the saved restoration and reboot:
+
+```sh
+python3 -B tests/router-offload-modes.py restore --known-hosts "$LAB_KNOWN_HOSTS" --private-evidence-dir "$LAB_PRIVATE/deploy"
+```
+
+Verify saved file hashes/package inventory, DNS/tunnel and original native LuCI
+files after reconnect. Production qualification still needs mixed bidirectional
+traffic, table saturation, external address/MAC churn and a 24–72 hour soak.
+
 ## Offload lifecycle research fixtures
 
 These are opt-in prototypes, not an offload installation option. Read
@@ -135,6 +215,8 @@ Run this only on a router whose configuration may be replaced. The suite
 installs `kmod-veth`, restarts network/firewall/dnsmasq/sing-box many times, and
 finishes by restoring the default domain-routing mode. A factory reset is still
 recommended after testing.
+This DNS matrix explicitly installs `--offload disable`; start it after a reboot
+with no running hardware owner. Hardware modes are tested by the separate suite.
 
 The router must already have:
 
@@ -143,8 +225,7 @@ The router must already have:
 - a DNS resolver reachable through that tunnel, supplied as
   `GETDOMAINS_TEST_WDNS`; the default TEST-NET address `192.0.2.53` requires an
   explicitly configured DNS fixture. Split DNS now sends actual queries there;
-- all three original scripts plus `getdomains-runtime.sh` and
-  `getdomains-compile.awk` copied to `/tmp/domain-routing-source`.
+- all root `getdomains-*` source files copied to `/tmp/domain-routing-source`.
 
 No router address, credentials, or sing-box configuration should be stored in
 the repository. The installer obtains the test copies of the diagnostic and

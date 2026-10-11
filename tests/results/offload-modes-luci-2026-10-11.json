@@ -1,0 +1,29 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "authentication-and-input-validation",
+      "passed": true
+    },
+    {
+      "case": "unchecked-asynchronous-critical-apply",
+      "passed": true
+    },
+    {
+      "case": "checked-confirm-opens-admission-only-on-valid-token",
+      "passed": true
+    },
+    {
+      "case": "automatic-rollback-keeps-hardware-closed",
+      "passed": true
+    },
+    {
+      "case": "manual-dns-and-ipsets-native-add-delete",
+      "passed": true
+    },
+    {
+      "case": "native-broad-offload-conflict-rejected",
+      "passed": true
+    }
+  ]
+}

@@ -9,7 +9,32 @@ esac
 
 ok() { printf '\033[32;1m[OK]\033[0m %s\n' "$*"; }
 fail() { printf '\033[31;1m[ERROR]\033[0m %s\n' "$*"; ERRORS=$((ERRORS + 1)); }
+warn() { printf '\033[33;1m[INFO]\033[0m %s\n' "$*"; }
 ERRORS=0
+
+if [ -x /usr/libexec/getdomains-offload ]; then
+    offload_status=$(/usr/libexec/getdomains-offload status) || fail 'Offload controller status is unavailable'
+    printf '%s\n' "$offload_status"
+    if printf '%s\n' "$offload_status" | grep -q '^reboot_required=1$'; then
+        warn 'Offload: reboot required to apply saved policy; existing hardware decisions may remain'
+    else
+        case $(printf '%s\n' "$offload_status" | sed -n 's/^state=//p') in
+            READY)
+                printf '%s\n' "$offload_status" | grep -q '^READY OK ' || fail 'Offload owner is not healthy'
+                nft list chain inet gd_offload admission 2>/dev/null | grep -q 'flow add @direct' || fail 'Offload admission is unexpectedly closed'
+                ;;
+            DISABLED|DISABLED_KILL_SWITCH)
+                if nft list table inet gd_offload >/dev/null 2>&1; then fail 'Offload table exists in disabled mode';
+                else ok 'Offload disabled'; fi
+                ;;
+            UNSUPPORTED_PLATFORM|UNSUPPORTED_TOPOLOGY|SOFTWARE_POLICY|SOFTWARE_AFTER_ROLLBACK|SOFTWARE_STARTUP)
+                warn 'Offload: software routing (unsupported profile/policy or unconfirmed rollback)';;
+            STARTING|PREPARING|DRAINING|HELD|POLICY_APPLIED|AWAIT_CONFIRM)
+                warn 'Offload: policy transaction or confirmation is pending';;
+            *) fail 'Offload controller is not ready';;
+        esac
+    fi
+fi
 
 if [ "$LANGUAGE" = en ]; then
     UNSUPPORTED="OpenWrt 25 or newer is required"
@@ -281,7 +306,7 @@ if [ "$(uci -q get firewall.mark_domains.mark)" = 0x0/0x40000000 ] &&
     [ "$(uci -q get firewall.mark_local_domains.mark)" = 0x0/0x40000000 ] &&
     [ "$(uci -q get firewall.@defaults[0].flow_offloading)" = 0 ] &&
     [ "$(uci -q get firewall.@defaults[0].flow_offloading_hw)" = 0 ]; then
-    ok "connection classification and disabled flow offloading"
+    ok "connection classification and disabled global flow offloading"
 else
     fail "connection classification / flow offloading conflict"
 fi

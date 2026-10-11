@@ -2,7 +2,8 @@
 
 Research fixtures on `codex/offload-lifecycle-prototype`, based on master
 `18dba24ebfef8f166de84dda96a00fe182908fa2`. The installer and runtime do not
-install these fixtures. Production flow offloading remains disabled.
+install these fixtures. This describes the earlier research revision. The
+subsequently installed modes are documented in [OFFLOAD_MODES.md](OFFLOAD_MODES.md).
 
 The objective is to qualify three prerequisites before implementing a service:
 physical revocation, preparation before configuration changes, and continued

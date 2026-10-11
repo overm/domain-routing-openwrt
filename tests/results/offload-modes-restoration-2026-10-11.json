@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "saved-config-program-and-extra-native-view-hashes-and-packages-restored",
+      "passed": true
+    },
+    {
+      "case": "private-hardware-and-module-absent-recovery-disarmed",
+      "passed": true
+    },
+    {
+      "case": "full-original-diagnostics-router-dns-and-real-tunnel-https-working",
+      "passed": true
+    }
+  ],
+  "saved_hashes_verified": 16
+}

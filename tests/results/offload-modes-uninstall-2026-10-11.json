@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "owner-removal-reboots-restores-native-files-and-clears-ppe",
+      "passed": true
+    },
+    {
+      "case": "wdns-definition-removed-static-lease-tags-retained",
+      "passed": true
+    }
+  ]
+}

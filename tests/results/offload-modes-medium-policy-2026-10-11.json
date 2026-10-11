@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "physical-accelerated-tcp-baseline",
+      "passed": true
+    },
+    {
+      "case": "reboot-guarantees-new-medium-policy",
+      "passed": true
+    },
+    {
+      "case": "policy-removal-restores-connectivity-after-reboot",
+      "passed": true
+    }
+  ],
+  "warmup_seconds": 2.23,
+  "warmup_hw_flag": true,
+  "warmup_ppe_bound": 2,
+  "medium_before_reboot": {
+    "old_connection_allowed": true,
+    "test_ppe_bound": 2
+  }
+}

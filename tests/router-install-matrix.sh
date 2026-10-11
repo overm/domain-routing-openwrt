@@ -185,7 +185,7 @@ run_installer() {
     shift 2
     printf '%s\nn\n' "$country" |
         GETDOMAINS_SCRIPT_BASE_URL="file://$SOURCE_DIR" \
-        sh "$INSTALLER" "$@" > "$RESULT_DIR/logs/$log_name.log" 2>&1
+        sh "$INSTALLER" --offload disable "$@" > "$RESULT_DIR/logs/$log_name.log" 2>&1
 }
 
 reset_domain_routing() {
@@ -568,7 +568,7 @@ run_cli_validation() {
     end_case
 }
 
-for script_name in getdomains-install.sh getdomains-check.sh getdomains-uninstall.sh getdomains-runtime.sh getdomains-compile.awk; do
+for script_name in getdomains-install.sh getdomains-check.sh getdomains-uninstall.sh getdomains-runtime.sh getdomains-compile.awk getdomains-offload.sh getdomains-offload-service.sh getdomains-offload-luci.uc getdomains-offload-job.uc getdomains-offload-setup.uc getdomains-offload-menu.json getdomains-offload.js getdomains-offload-status.js; do
     required=$INPUT_SOURCE_DIR/$script_name
     if [ ! -s "$required" ]; then
         echo "Missing test source: $required" >&2
