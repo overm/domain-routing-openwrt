@@ -26,7 +26,8 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 | `getdomains-check.sh` | OpenWrt 25/apk, sing-box TUN loop protection, netifd, routing, firewall, nft set, and dnsmasq diagnostics. |
 | `getdomains-uninstall.sh` | Removes domain-routing artifacts while retaining sing-box. |
 | `getdomains-runtime.sh`, `getdomains-compile.awk` | Installed in `/usr/libexec`; transactional refresh, UCI snapshot/compiler, boot restore and LuCI synchronization. The awk compiler is host-safe; runtime device actions are not. |
-| `README.md`, `README.EN.md` | Russian and English public documentation. |
+| `README.md`, `README.EN.md` | Concise Russian and English public documentation with section links to the detailed versions. |
+| `README.detailed.md`, `README.EN.detailed.md` | Full Russian and English installation, options, LuCI scenarios, and operational details. |
 | `tests/router-install-matrix.sh` | Destructive OpenWrt integration matrix for installer modes, transitions, routing, dnsmasq, and nftables behavior. |
 | `tests/router-dns-lifecycle.sh` | Destructive DNS upstream and live TCP conntrack/packet-mark tests, including simulated LAN traffic. |
 | `tests/router-boot-restore.sh` | Two-stage destructive reboot test for cached DNS, manual local records, monitor and WDNS guards. |
