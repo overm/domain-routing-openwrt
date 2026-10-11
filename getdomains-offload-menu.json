@@ -1,0 +1,9 @@
+{
+  "admin/uci/apply_rollback": { "cors": true, "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_apply_rollback", "post": true }, "auth": { "methods": ["cookie:sysauth_https", "cookie:sysauth_http"] } },
+  "admin/uci/apply_unchecked": { "cors": true, "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_apply_unchecked", "post": true }, "auth": { "methods": ["cookie:sysauth_https", "cookie:sysauth_http"] } },
+  "admin/uci/confirm": { "cors": true, "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_confirm" }, "auth": {} },
+  "admin/uci/getdomains_job": { "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_job" }, "auth": { "methods": ["cookie:sysauth_https", "cookie:sysauth_http"] } },
+  "admin/uci/getdomains_status": { "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_status" }, "auth": { "methods": ["cookie:sysauth_https", "cookie:sysauth_http"] } },
+  "admin/uci/getdomains_command": { "action": { "type": "function", "module": "luci.controller.admin.getdomains_offload", "function": "action_command", "post": true }, "auth": { "methods": ["cookie:sysauth_https", "cookie:sysauth_http"] } },
+  "admin/status/getdomains_offload": { "title": "Domain routing acceleration", "order": 95, "action": { "type": "view", "path": "getdomains_offload" } }
+}

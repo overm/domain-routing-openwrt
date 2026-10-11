@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "medium",
+      "state": "READY",
+      "reboot_required": false,
+      "tunnel_preserved": true,
+      "passed": true
+    }
+  ]
+}

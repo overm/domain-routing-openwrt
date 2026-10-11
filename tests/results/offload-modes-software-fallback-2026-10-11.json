@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "ownerless-strict-apply-uses-native-transport",
+      "passed": true
+    },
+    {
+      "case": "ownerless-rollback-leaves-next-apply-unlocked",
+      "passed": true
+    },
+    {
+      "case": "ownerless-service-command-and-diagnostics",
+      "passed": true
+    }
+  ]
+}

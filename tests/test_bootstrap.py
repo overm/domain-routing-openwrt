@@ -13,7 +13,8 @@ from test_compiler import ROOT, SH
 
 DEFAULT_SOURCE = 'https://raw.githubusercontent.com/overm/domain-routing-openwrt/master'
 HELPERS = ('getdomains-check.sh', 'getdomains-uninstall.sh',
-           'getdomains-runtime.sh', 'getdomains-compile.awk')
+           'getdomains-runtime.sh', 'getdomains-offload.sh',
+           'getdomains-offload-service.sh', 'getdomains-compile.awk')
 
 
 class BootstrapTests(unittest.TestCase):
@@ -23,7 +24,7 @@ class BootstrapTests(unittest.TestCase):
         stage = source.split('\nSCRIPT_BASE_URL=', 1)[1].split(
             '\nmkdir -p /usr/libexec\n', 1)[0]
         stage = 'SCRIPT_BASE_URL=' + stage
-        self.assertNotRegex(stage, r'\b(?:apk|uci|service|nft|mv|chmod)\b')
+        self.assertNotRegex(stage, r'(?<![\w-])(?:apk|uci|service|nft|mv|chmod)(?![\w.-])')
         stage = stage.replace('/tmp/', './staged/')
         expected = override or DEFAULT_SOURCE
         env = dict(os.environ)

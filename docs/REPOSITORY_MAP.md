@@ -31,6 +31,11 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
 | `tests/router-dns-lifecycle.sh` | Destructive DNS upstream and live TCP conntrack/packet-mark tests, including simulated LAN traffic. |
 | `tests/router-boot-restore.sh` | Two-stage destructive reboot test for cached DNS, manual local records, monitor and WDNS guards. |
 | `tests/test_*.py` | Host-safe compiler and transaction tests with mocked device boundaries. |
+| `tests/prototypes/`, `tests/offload-*.py`, `tests/offload_lifecycle_support.py` | Opt-in destructive offload lifecycle research fixtures; not installed by production scripts. See `docs/OFFLOAD_LIFECYCLE_RESEARCH.md`. |
+| `getdomains-offload.sh`, `getdomains-offload-service.sh` | Device lifecycle controller and procd service; modes, selective admission, physical barrier and observer. |
+| `offload/`, `tools/build-offload*.sh` | Native owner, platform binary/checksum, matching musl SDK builds and isolated test build. |
+| `getdomains-offload-*.uc`, `getdomains-offload.js`, `getdomains-offload-menu.json`, `getdomains-offload-status.js` | Asynchronous LuCI apply/confirmation/commands, checked native-view integration and status page. |
+| `tests/router-offload-*.py`, `tests/test_offload*.py`, `tests/offload-js-unit.cjs` | Installed controller, namespace fault, LuCI and host-safe tests. |
 | `tests/results/` | Reviewed reports and per-case summaries from named OpenWrt testbeds; raw device logs and credentials are never committed. |
 
 ## Data flow
@@ -78,7 +83,12 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    conntrack bit 0x40000000. Replies are excluded and other mark bits preserved.
    Route-bit copies use conditional rules and constant masks, since Linux 6.12
    cannot combine two runtime registers in an nft bitwise expression.
-   Flow offloading is disabled. Routine DNS changes never reload firewall or
+   Global flow offloading is disabled. `--offload` defaults to medium and owns
+   a separate flowtable for explicitly classified direct IPv4 SNAT connections
+   on the qualified profile. Strict changes use a held physical barrier;
+   kill-switch and incompatible configurations disable hardware admission.
+   Installation/mode changes require reboot. See `docs/OFFLOAD_MODES.md`.
+   Routine DNS changes never reload firewall or
    flush conntrack. A firewall script include requests DNS cache clearing and
    reseeding when firewall4 recreates the RAM-only sets.
 6. The network policy rules send marked LAN and router-local packets, as well as

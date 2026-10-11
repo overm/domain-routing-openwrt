@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "physical-accelerated-tcp-baseline",
+      "passed": true
+    },
+    {
+      "case": "live-standby-loss-drains-and-replenishes-without-reboot",
+      "passed": true
+    },
+    {
+      "case": "critical-policy-revokes-old-hardware-and-rejects-new-tcp",
+      "passed": true
+    },
+    {
+      "case": "policy-removal-restores-connectivity-without-reboot",
+      "passed": true
+    }
+  ],
+  "warmup_seconds": 2.23,
+  "warmup_hw_flag": true,
+  "warmup_ppe_bound": 2
+}

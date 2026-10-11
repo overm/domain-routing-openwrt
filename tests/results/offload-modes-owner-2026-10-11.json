@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "ownership-and-phase-validation",
+      "passed": true
+    },
+    {
+      "case": "standby-loss-and-fenced-recovery",
+      "passed": true
+    },
+    {
+      "case": "worker-loss-after-retire-preserves-phase",
+      "passed": true
+    },
+    {
+      "case": "keeper-loss-and-replenishment",
+      "passed": true
+    },
+    {
+      "case": "independent-transaction-deadline-keeps-ownership",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,625 @@
+{
+  "date": "2026-10-10",
+  "base_commit": "18dba24ebfef8f166de84dda96a00fe182908fa2",
+  "environment": {
+    "board": "Xiaomi AX3000T",
+    "soc": "MT7981",
+    "openwrt": "25.12.5",
+    "kernel": "6.12.94",
+    "nft": "1.1.6"
+  },
+  "final_restoration": {
+    "checks_passed": 8,
+    "saved_files_identical": 9,
+    "packages_unchanged": true,
+    "global_offloading_disabled": true,
+    "lab_removed_and_ppe_empty": true,
+    "real_split_dns_and_tls_valid_https": true
+  },
+  "experiments": {
+    "owner-v2": {
+      "cases": [
+        {
+          "cycle": 0,
+          "standby_failure_gates_admission": true,
+          "standby_replacement": true,
+          "worker_failure_gates_admission": true,
+          "foreign_deletes_blocked": 100,
+          "recovery_same_socket": true,
+          "queued_old_generation_reenable": "rejected"
+        },
+        {
+          "cycle": 1,
+          "standby_failure_gates_admission": true,
+          "standby_replacement": true,
+          "worker_failure_gates_admission": true,
+          "foreign_deletes_blocked": 100,
+          "recovery_same_socket": true,
+          "queued_old_generation_reenable": "rejected"
+        },
+        {
+          "cycle": 2,
+          "standby_failure_gates_admission": true,
+          "standby_replacement": true,
+          "worker_failure_gates_admission": true,
+          "foreign_deletes_blocked": 100,
+          "recovery_same_socket": true,
+          "queued_old_generation_reenable": "rejected"
+        },
+        {
+          "cycle": 3,
+          "standby_failure_gates_admission": true,
+          "standby_replacement": true,
+          "worker_failure_gates_admission": true,
+          "foreign_deletes_blocked": 100,
+          "recovery_same_socket": true,
+          "queued_old_generation_reenable": "rejected"
+        },
+        {
+          "cycle": 4,
+          "standby_failure_gates_admission": true,
+          "standby_replacement": true,
+          "worker_failure_gates_admission": true,
+          "foreign_deletes_blocked": 100,
+          "recovery_same_socket": true,
+          "queued_old_generation_reenable": "rejected"
+        }
+      ],
+      "status": "passed",
+      "fault_model": "one owner process at a time",
+      "all_processes_dead_negative_control": "table survives but loses ownership"
+    },
+    "udp8-fresh": {
+      "protocol": "udp",
+      "flows_per_cycle": 8,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 16,
+          "warm_receiving_flows_both_directions": 8,
+          "prepare_seconds": 44.813,
+          "drain_polls_seconds_rows": [
+            [
+              0,
+              12
+            ],
+            [
+              1,
+              12
+            ],
+            [
+              2,
+              12
+            ],
+            [
+              3,
+              12
+            ],
+            [
+              4,
+              12
+            ],
+            [
+              5,
+              12
+            ],
+            [
+              6,
+              12
+            ],
+            [
+              7,
+              12
+            ],
+            [
+              8,
+              12
+            ],
+            [
+              9,
+              12
+            ],
+            [
+              10,
+              12
+            ],
+            [
+              11,
+              12
+            ],
+            [
+              12,
+              12
+            ],
+            [
+              13,
+              12
+            ],
+            [
+              14,
+              6
+            ],
+            [
+              15,
+              6
+            ],
+            [
+              16,
+              6
+            ],
+            [
+              17,
+              6
+            ],
+            [
+              18,
+              6
+            ],
+            [
+              19,
+              6
+            ],
+            [
+              20,
+              6
+            ],
+            [
+              21,
+              6
+            ],
+            [
+              22,
+              6
+            ],
+            [
+              23,
+              6
+            ],
+            [
+              24,
+              6
+            ],
+            [
+              25,
+              6
+            ],
+            [
+              26,
+              6
+            ],
+            [
+              27,
+              6
+            ],
+            [
+              28,
+              6
+            ],
+            [
+              29,
+              6
+            ],
+            [
+              30,
+              6
+            ],
+            [
+              31,
+              6
+            ],
+            [
+              32,
+              6
+            ],
+            [
+              33,
+              6
+            ],
+            [
+              34,
+              6
+            ],
+            [
+              35,
+              6
+            ],
+            [
+              37,
+              6
+            ],
+            [
+              38,
+              6
+            ],
+            [
+              39,
+              6
+            ],
+            [
+              40,
+              6
+            ],
+            [
+              41,
+              6
+            ],
+            [
+              42,
+              6
+            ],
+            [
+              43,
+              6
+            ],
+            [
+              44,
+              6
+            ],
+            [
+              45,
+              6
+            ]
+          ],
+          "status": "drain-timeout",
+          "remaining_ppe_rows": 6,
+          "traffic_after_forced_timeout_while_wan_down": [
+            0,
+            0
+          ]
+        }
+      ],
+      "observation_seconds": 60,
+      "status": "incomplete",
+      "cleanup": "recovery required; owned flowtable retained",
+      "interpretation": "WAN-only revocation counterexample; timeout correctly refuses policy change"
+    },
+    "udp8-parent-detached": {
+      "protocol": "udp",
+      "flows_per_cycle": 8,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 16,
+          "warm_receiving_flows_both_directions": 8,
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.39,
+          "drain_polls_seconds_rows": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            7668,
+            7668
+          ],
+          "after_ppe_rows": 0,
+          "same_tuple_reopen_forbidden": [
+            0,
+            0
+          ],
+          "latest_received_send_after_prepare_begin_seconds": 8.359
+        }
+      ],
+      "observation_seconds": 60,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "tcp8-parent": {
+      "protocol": "tcp",
+      "flows_per_cycle": 8,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 16,
+          "warm_receiving_flows_both_directions": 8,
+          "worker_crash_and_firewall_reload": "protected table, hardware continues",
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.422,
+          "drain_polls_seconds_rows": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            0,
+            0
+          ],
+          "after_ppe_rows": 0,
+          "fresh_tcp_control_forward_reverse": [
+            97,
+            97
+          ],
+          "same_tuple_tcp_connect": "blocked",
+          "same_tuple_tcp_drop_counter_delta": 4,
+          "latest_received_send_after_prepare_begin_seconds": 0.266
+        }
+      ],
+      "observation_seconds": 30,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "udp128": {
+      "protocol": "udp",
+      "flows_per_cycle": 128,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 256,
+          "warm_receiving_flows_both_directions": 128,
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.453,
+          "drain_polls_seconds_rows": [
+            [
+              2,
+              0
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            61296,
+            81292
+          ],
+          "after_ppe_rows": 0,
+          "same_tuple_reopen_forbidden": [
+            0,
+            0
+          ],
+          "latest_received_send_after_prepare_begin_seconds": 8.438
+        },
+        {
+          "cycle": 1,
+          "warm_ppe_rows": 256,
+          "warm_receiving_flows_both_directions": 128,
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.406,
+          "drain_polls_seconds_rows": [
+            [
+              2,
+              0
+            ],
+            [
+              3,
+              0
+            ]
+          ],
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            81523,
+            83871
+          ],
+          "after_ppe_rows": 0,
+          "same_tuple_reopen_forbidden": [
+            0,
+            0
+          ],
+          "latest_received_send_after_prepare_begin_seconds": 8.406
+        }
+      ],
+      "observation_seconds": 45,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "udp512": {
+      "protocol": "udp",
+      "flows_per_cycle": 512,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 1021,
+          "warm_receiving_flows_both_directions": 512,
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 16.844,
+          "drain_polls_seconds_rows": [
+            [
+              11,
+              0
+            ],
+            [
+              12,
+              0
+            ]
+          ],
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            2439167,
+            2439156
+          ],
+          "after_ppe_rows": 0,
+          "same_tuple_reopen_forbidden": [
+            0,
+            0
+          ],
+          "latest_received_send_after_prepare_begin_seconds": 15.5
+        }
+      ],
+      "observation_seconds": 300,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "udp8-held": {
+      "protocol": "udp",
+      "flows_per_cycle": 8,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 16,
+          "warm_receiving_flows_both_directions": 8,
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.485,
+          "drain_polls_seconds_rows": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "policy_applied_before_link_restore": true,
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            3840,
+            3840
+          ],
+          "after_ppe_rows": 0,
+          "minimum_allowed_frames_per_flow_direction": 960,
+          "same_tuple_reopen_forbidden": [
+            0,
+            0
+          ],
+          "latest_received_send_after_prepare_begin_seconds": 8.485
+        }
+      ],
+      "observation_seconds": 30,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "tcp8-held": {
+      "protocol": "tcp",
+      "flows_per_cycle": 8,
+      "cycles": [
+        {
+          "cycle": 0,
+          "warm_ppe_rows": 16,
+          "warm_receiving_flows_both_directions": 8,
+          "worker_crash_and_firewall_reload": "protected table, hardware continues",
+          "quiesce": "wan and common Ethernet parent eth0",
+          "prepare_seconds": 8.484,
+          "drain_polls_seconds_rows": [
+            [
+              1,
+              0
+            ],
+            [
+              2,
+              0
+            ]
+          ],
+          "policy_applied_before_link_restore": true,
+          "forbidden_forward_reverse": [
+            0,
+            0
+          ],
+          "control_forward_reverse": [
+            0,
+            0
+          ],
+          "after_ppe_rows": 0,
+          "fresh_tcp_control_forward_reverse": [
+            97,
+            97
+          ],
+          "same_tuple_tcp_connect": "blocked",
+          "same_tuple_tcp_drop_counter_delta": 4,
+          "latest_received_send_after_prepare_begin_seconds": 0.422
+        }
+      ],
+      "observation_seconds": 30,
+      "status": "passed",
+      "cleanup": "flowtable removed only after completed drain"
+    },
+    "luci": {
+      "status": "passed",
+      "cases": [
+        {
+          "case": "unchecked-preparation-fails",
+          "http": 503,
+          "committed": false
+        },
+        {
+          "case": "checked-preparation-fails",
+          "http": 503,
+          "committed": false
+        },
+        {
+          "case": "unchecked-order",
+          "prehook_before_commit": true,
+          "fw4_hook_after_commit_before_kernel_apply": true
+        },
+        {
+          "case": "checked-confirm",
+          "native_rollback_token_and_confirm": true
+        },
+        {
+          "case": "checked-automatic-rollback",
+          "previous_config_restored": true
+        },
+        {
+          "case": "network-preparation-fails",
+          "http": 503,
+          "committed": false
+        },
+        {
+          "case": "wdns-preparation-fails",
+          "http": 503,
+          "committed": false
+        },
+        {
+          "case": "dns-only",
+          "prehook_called": false,
+          "committed": true
+        },
+        {
+          "case": "fw4-reload-blocked",
+          "kernel_chain_unchanged": true
+        },
+        {
+          "case": "fw4-restart-blocked",
+          "kernel_chain_unchanged": true
+        },
+        {
+          "case": "fw4-stop-blocked",
+          "kernel_chain_unchanged": true
+        },
+        {
+          "case": "fw4-flush-blocked",
+          "kernel_chain_unchanged": true
+        },
+        {
+          "case": "fw4-reload-sets-blocked",
+          "kernel_chain_unchanged": true
+        },
+        {
+          "case": "direct-uci-rpc-negative-control",
+          "bypasses_luci_precommit": true
+        }
+      ],
+      "hardware_active": false
+    }
+  }
+}

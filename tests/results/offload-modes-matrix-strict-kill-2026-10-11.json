@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "strict-kill",
+      "state": "DISABLED_KILL_SWITCH",
+      "reboot_required": false,
+      "tunnel_preserved": true,
+      "passed": true
+    }
+  ]
+}

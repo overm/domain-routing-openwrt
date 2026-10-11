@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "quiet-load-live-process-resource-sample",
+      "passed": true
+    }
+  ],
+  "sample_seconds": 10,
+  "cpu_units": "percent of one core; Linux USER_HZ=100",
+  "scope": "quiet load with SSH measurement activity; no bulk-load qualification",
+  "actual_elapsed_seconds": 10.81,
+  "roles": {
+    "worker": {
+      "cpu_core_percent": 0.09,
+      "rss_kib": 3052,
+      "pss_kib": null,
+      "open_fds_before": 6,
+      "open_fds_after": 6
+    },
+    "standby": {
+      "cpu_core_percent": 0.0,
+      "rss_kib": 1756,
+      "pss_kib": null,
+      "open_fds_before": 6,
+      "open_fds_after": 6
+    },
+    "keeper": {
+      "cpu_core_percent": 0.0,
+      "rss_kib": 1936,
+      "pss_kib": null,
+      "open_fds_before": 4,
+      "open_fds_after": 4
+    },
+    "supervisor": {
+      "cpu_core_percent": 9.25,
+      "rss_kib": 1296,
+      "pss_kib": null,
+      "open_fds_before": 4,
+      "open_fds_after": 4
+    }
+  },
+  "system_busy_percent_all_cores": 7.16
+}

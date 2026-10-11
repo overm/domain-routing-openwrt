@@ -2,9 +2,18 @@
 
 set -eu
 
+DEFER_APPLY=0
+if [ -S /tmp/getdomains-offload/owner.sock ]; then
+    DEFER_APPLY=1
+    touch /tmp/getdomains-offload/maintenance
+    /usr/libexec/getdomains-offload-owner --client CLOSE >/dev/null || true
+fi
+/etc/init.d/getdomains-offload disable 2>/dev/null || true
+[ "$DEFER_APPLY" = 1 ] || /etc/init.d/getdomains-offload stop 2>/dev/null || true
+
 /etc/init.d/getdomains stop 2>/dev/null || true
 /etc/init.d/getdomains disable 2>/dev/null || true
-if [ -f /tmp/getdomains-wdns-guards ]; then
+if [ "$DEFER_APPLY" = 0 ] && [ -f /tmp/getdomains-wdns-guards ]; then
     while read -r address; do ip -4 rule del priority 79 to "$address" unreachable || true; done < /tmp/getdomains-wdns-guards
     rm -f /tmp/getdomains-wdns-guards
 fi
@@ -29,6 +38,22 @@ for option in flow_offloading flow_offloading_hw noresolv resolvfile; do
     fi
     rm -f "$file"
 done
+if [ -f /usr/libexec/getdomains-offload-setup.uc ]; then
+    ucode /usr/libexec/getdomains-offload-setup.uc remove
+fi
+if [ -f /etc/getdomains/fw4.original ] && grep -q 'getdomains offload lifecycle wrapper' /sbin/fw4; then
+    cp -p /etc/getdomains/fw4.original /sbin/fw4
+fi
+rm -f /etc/init.d/getdomains-offload /etc/rc.d/S99getdomains-offload /etc/rc.d/K01getdomains-offload \
+    /usr/libexec/getdomains-offload /usr/libexec/getdomains-offload-owner \
+    /usr/libexec/getdomains-offload-job.uc /usr/libexec/getdomains-offload-setup.uc \
+    /usr/share/ucode/luci/controller/admin/getdomains_offload.uc \
+    /usr/share/luci/menu.d/zz-getdomains-offload.json \
+    /www/luci-static/resources/getdomains-offload.js /www/luci-static/resources/view/getdomains_offload.js \
+    /etc/getdomains/offload-mode /etc/getdomains/offload-reboot-required \
+    /etc/getdomains/fw4.original /etc/getdomains/ui.original \
+    /etc/getdomains/interfaces.original /etc/getdomains/startup.original
+rm -f /tmp/luci-indexcache /tmp/luci-indexcache.* /tmp/luci-modulecache/*
 rm -f /etc/init.d/getdomains /etc/rc.d/S99getdomains /etc/rc.d/S18getdomains /etc/hotplug.d/iface/30-vpnroute \
     /etc/getdomains/refresh-prerouting.nft /etc/getdomains/refresh-output.nft \
     /etc/getdomains/save-prerouting.nft /etc/getdomains/save-output.nft \
@@ -53,6 +78,12 @@ uci -q delete dhcp.wdns || true
 uci commit dhcp
 
 # Keep unrelated files in a shared dnsmasq confdir and all manual LuCI records.
+if [ "$DEFER_APPLY" = 1 ]; then
+    echo 'Domain routing removed. Rebooting to clear hardware decisions. sing-box configuration was kept.'
+    sync
+    reboot
+    exit 0
+fi
 /etc/init.d/cron restart
 /etc/init.d/dnsmasq restart
 /etc/init.d/firewall restart
