@@ -108,9 +108,7 @@ getdomains-uninstall
 
 ## [sing-box configuration](README.EN.detailed.md#sing-box-configuration)
 
-Fill in the `CHANGE_ME` values in `/etc/sing-box/config.json` and validate it with `sing-box check -c /etc/sing-box/config.json`; an existing configuration is preserved. Keep `route.auto_detect_interface: true` or an equivalent interface binding to prevent a TUN loop. If the configuration is invalid, the installer skips restarting sing-box and the initial list download.
-
-[More details](README.EN.detailed.md#sing-box-configuration)
+During installation, you will be offered the option to edit the sing-box configuration at `/etc/sing-box/config.json`. If the configuration is invalid, the installer skips restarting sing-box and the initial list download. You can also edit the configuration later and validate it with `sing-box check -c /etc/sing-box/config.json`. Follow the recommendations and refer to the configuration example under [More details](README.EN.detailed.md#sing-box-configuration).
 
 ## [List refreshes](README.EN.detailed.md#list-refreshes)
 
