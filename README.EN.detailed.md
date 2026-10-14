@@ -24,6 +24,8 @@ Only the standalone installer is supported; the Ansible role has been removed.
 
 ## Installation
 
+Connect to the router over SSH and run the command below on the router.
+
 ```sh
 wget -O /tmp/getdomains-install.sh https://raw.githubusercontent.com/overm/domain-routing-openwrt/master/getdomains-install.sh && sh /tmp/getdomains-install.sh
 ```
@@ -54,6 +56,8 @@ disappears. IPv6 is not routed into the tunnel and is also allowed directly.
 This is the fail-open mode.
 
 ### Additional options
+
+Append options after the script name; multiple options can be combined.
 
 #### `--offload medium|strict|disable`
 
@@ -221,6 +225,29 @@ provider DNS. The WDNS address has a VPN lookup at priority 80 and a destination
 `unreachable` rule at 81, preventing direct fallback even without `--kill-switch`.
 Temporary priority-79 guards protect the old/new WDNS addresses during changes
 and boot until the network rules and DNS configuration are ready.
+
+## Custom domain sets
+
+Add your own domains through LuCI separately from the downloaded list:
+
+1. Open **DNS → IP Sets** and add an entry.
+2. Enter the required domains, such as `example.org`, without a protocol or path.
+3. Select `vpn_domains` for IPv4. If installation used `--ipv6-deny`,
+   also add `vpn_domains6` to the same entry for IPv6.
+   The nftables table is `fw4` in the `inet` family.
+4. Click **Save & Apply** and wait for the settings to take effect.
+
+By default, a separate `icanhazip.com` entry is already present, created
+by the installer to check the tunnel with `curl -4 icanhazip.com`.
+With `--ipv6-deny`, it contains both sets; `--no-icanhazip` disables
+its automatic addition. You can add your own domains regardless of this option.
+
+Client queries must go through the router DNS to populate the sets.
+When WDNS is configured, selected-domain queries are also sent to the tunnel
+DNS server according to the [split DNS rules](#split-dns-and-luci).
+Clients with the `wdns` DHCP tag query external DNS directly; their queries
+do not populate the local sets. Configure full IPv4 routing for these clients
+using the [separate scenario](#send-all-ipv4-traffic-from-one-client-through-the-tunnel).
 
 Manual IP Sets rows own their domain and subtree; a more specific manual row
 overrides a parent. Rows for exactly the same domain are merged into one
