@@ -1,0 +1,65 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "native-hook-allowlist-and-foreign-hook-rejection",
+      "passed": true
+    },
+    {
+      "case": "software-fallback-refuses-running-foreign-cache",
+      "passed": true
+    },
+    {
+      "case": "policy-fingerprint-ignores-recreated-object-ids-and-order",
+      "passed": true
+    },
+    {
+      "case": "classification-native-acl-and-global-apply-lock",
+      "passed": true
+    },
+    {
+      "case": "malformed-request",
+      "passed": true
+    },
+    {
+      "case": "command-injection",
+      "passed": true
+    },
+    {
+      "case": "ifdown-wan-excludes-port-restoration",
+      "passed": true
+    },
+    {
+      "case": "ifup-wan-restores-previously-down-port",
+      "passed": true
+    },
+    {
+      "case": "snapshot-race",
+      "passed": true
+    },
+    {
+      "case": "commit-failure",
+      "passed": true
+    },
+    {
+      "case": "unchecked-native-no-data",
+      "passed": true
+    },
+    {
+      "case": "checked-confirmation-publication",
+      "passed": true
+    },
+    {
+      "case": "checked-apply-rpc-failure",
+      "passed": true
+    },
+    {
+      "case": "confirmation-publication-failure",
+      "passed": true
+    },
+    {
+      "case": "all-view-preflight-idempotence-and-foreign-edit-preservation",
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "status": "passed",
+  "board_identity_simulated": true,
+  "cases": [
+    {
+      "case": "experimental-decline-no",
+      "passed": true,
+      "seconds": 74.36
+    },
+    {
+      "case": "experimental-decline-empty",
+      "passed": true,
+      "seconds": 72.66
+    },
+    {
+      "case": "experimental-decline-eof",
+      "passed": true,
+      "seconds": 77.62
+    },
+    {
+      "case": "experimental-strict-rejected",
+      "passed": true,
+      "seconds": 77.39
+    },
+    {
+      "case": "experimental-disabled-no-prompt",
+      "passed": true,
+      "seconds": 75.42
+    },
+    {
+      "case": "experimental-kill-switch-precedence",
+      "passed": true,
+      "seconds": 71.47
+    },
+    {
+      "case": "experimental-strict-kill-disabled",
+      "passed": true,
+      "seconds": 73.06
+    },
+    {
+      "case": "experimental-medium-explicit-consent",
+      "passed": true,
+      "seconds": 77.56
+    },
+    {
+      "case": "experimental-luci-status",
+      "passed": true,
+      "seconds": 0.31
+    },
+    {
+      "case": "experimental-physical-udp",
+      "passed": true,
+      "seconds": 21.33
+    },
+    {
+      "case": "experimental-physical-tcp",
+      "passed": true,
+      "seconds": 21.64
+    },
+    {
+      "case": "experimental-medium-policy-reboot",
+      "passed": true,
+      "seconds": 108.0
+    },
+    {
+      "case": "experimental-resources",
+      "passed": true,
+      "seconds": 12.67
+    },
+    {
+      "case": "experimental-reinstall-renews-consent",
+      "passed": true,
+      "seconds": 66.89
+    }
+  ],
+  "initial_setup_retries": "Checksum CRLF and LuCI session token corrected; see report."
+}

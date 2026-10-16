@@ -179,6 +179,7 @@ return {
     action_status: function() {
         http.prepare_content('application/json');
         http.write_json({ mode: trim(readfile('/etc/getdomains/offload-mode') ?? 'disable'),
+            experimental_opt_in: !!readfile('/etc/getdomains/offload-experimental-board'),
             state: trim(readfile(directory + '/state') ?? 'STOPPED'),
             reboot_required: !!readfile('/etc/getdomains/offload-reboot-required') });
     }

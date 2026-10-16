@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "firewall-reload",
+      "without_reboot": true,
+      "passed": true
+    },
+    {
+      "case": "ifdown-wan",
+      "without_reboot": true,
+      "passed": true
+    },
+    {
+      "case": "ifup-wan",
+      "without_reboot": true,
+      "passed": true
+    },
+    {
+      "case": "network-reload",
+      "without_reboot": true,
+      "passed": true
+    },
+    {
+      "case": "sing-box-restart",
+      "without_reboot": true,
+      "passed": true
+    }
+  ]
+}

@@ -50,7 +50,7 @@ rm -f /etc/init.d/getdomains-offload /etc/rc.d/S99getdomains-offload /etc/rc.d/K
     /usr/share/ucode/luci/controller/admin/getdomains_offload.uc \
     /usr/share/luci/menu.d/zz-getdomains-offload.json \
     /www/luci-static/resources/getdomains-offload.js /www/luci-static/resources/view/getdomains_offload.js \
-    /etc/getdomains/offload-mode /etc/getdomains/offload-reboot-required \
+    /etc/getdomains/offload-mode /etc/getdomains/offload-reboot-required /etc/getdomains/offload-experimental-board \
     /etc/getdomains/fw4.original /etc/getdomains/ui.original \
     /etc/getdomains/interfaces.original /etc/getdomains/startup.original
 rm -f /tmp/luci-indexcache /tmp/luci-indexcache.* /tmp/luci-modulecache/*

@@ -1,0 +1,153 @@
+{
+  "status": "passed",
+  "install_matrix": {
+    "assertions": {
+      "total": 661,
+      "passed": 640,
+      "failed": 0,
+      "skipped": 21
+    },
+    "cases": [
+      {
+        "case": "preflight",
+        "passed": true
+      },
+      {
+        "case": "cli-help",
+        "passed": true
+      },
+      {
+        "case": "cli-unknown-option",
+        "passed": true
+      },
+      {
+        "case": "cli-wdns-missing-value",
+        "passed": true
+      },
+      {
+        "case": "cli-wdns-too-short",
+        "passed": true
+      },
+      {
+        "case": "cli-wdns-octet-overflow",
+        "passed": true
+      },
+      {
+        "case": "cli-wdns-leading-zero",
+        "passed": true
+      },
+      {
+        "case": "cli-wdns-nonnumeric",
+        "passed": true
+      },
+      {
+        "case": "matrix-0-ican1-ipv60-kill0-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-1-ican0-ipv60-kill0-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-2-ican1-ipv61-kill0-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-3-ican0-ipv61-kill0-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-4-ican1-ipv60-kill1-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-5-ican0-ipv60-kill1-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-6-ican1-ipv61-kill1-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-7-ican0-ipv61-kill1-wdns0",
+        "passed": true
+      },
+      {
+        "case": "matrix-8-ican1-ipv60-kill0-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-9-ican0-ipv60-kill0-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-10-ican1-ipv61-kill0-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-11-ican0-ipv61-kill0-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-12-ican1-ipv60-kill1-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-13-ican0-ipv60-kill1-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-14-ican1-ipv61-kill1-wdns1",
+        "passed": true
+      },
+      {
+        "case": "matrix-15-ican0-ipv61-kill1-wdns1",
+        "passed": true
+      },
+      {
+        "case": "idempotent-all-options",
+        "passed": true
+      },
+      {
+        "case": "wdns-tag-option-preservation",
+        "passed": true
+      },
+      {
+        "case": "wdns-uninstall-lease-preservation",
+        "passed": true
+      },
+      {
+        "case": "reordered-and-duplicate-options",
+        "passed": true
+      },
+      {
+        "case": "transition-all-options-to-default",
+        "passed": true
+      },
+      {
+        "case": "country-2-russia-outside",
+        "passed": true
+      },
+      {
+        "case": "country-3-ukraine",
+        "passed": true
+      },
+      {
+        "case": "invalid-country-selection",
+        "passed": true
+      },
+      {
+        "case": "final-default-restoration",
+        "passed": true
+      }
+    ]
+  },
+  "dns_lifecycle": {
+    "passed_assertions": 31,
+    "failed_assertions": 0
+  },
+  "boot_restoration": {
+    "passed_assertions": 11,
+    "failed_assertions": 0
+  }
+}

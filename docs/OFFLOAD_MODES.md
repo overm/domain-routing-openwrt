@@ -10,8 +10,43 @@ is guaranteed after **Save & Apply + reboot**, not before that reboot.
 The initial profile is Xiaomi AX3000T (`xiaomi,mi-router-ax3000t`), MT7981,
 OpenWrt 25.12.5 / Linux 6.12.94 / nftables 1.1.6, with Ethernet parent `eth0`,
 DSA LAN ports from board.json, `br-lan`, and `wan`. Both PPE debug dumps must be
-readable. Other boards/versions/topologies use normal routing. Do not add a
-board to this allowlist solely because it has MediaTek hardware.
+readable. This remains the only qualified profile and the only profile allowed
+to run `strict`.
+
+Other MT7981/MT7986 boards may opt into **experimental medium**, subject to all
+of these read-only checks:
+
+- aarch64, Linux 6.12.94 and nftables 1.1.6 (the existing ABI/version gates).
+- Readable PPE0 and PPE1 dumps, no third PPE, and `eth0`/`wan` devices.
+- `eth0` uses `mtk_soc_eth`; its Ethernet device-tree compatible is
+  `mediatek,mt7981-eth` or `mediatek,mt7986-eth`.
+- The LAN runtime device is `br-lan`, the WAN runtime device is `wan` (no PPPoE),
+  and all board.json LAN ports belong to that bridge. Those ports and `wan`
+  must have the `eth0` ifindex as their iflink parent.
+
+The installer invokes the staged controller's `platform-profile` probe, also
+used at startup, so there is one compatibility implementation. A compatible but
+unqualified board receives a warning about connectivity loss and accelerated
+flows retaining old routes or bypassing new firewall restrictions until reboot.
+Only `y`, `Y`, `yes` or `YES` followed by a newline accepts the `[y/N]` prompt.
+Declining, empty input, EOF, an incompatible platform or unqualified `strict`
+selects `disable` and continues installation. `--kill-switch` and `disable`
+skip the experimental prompt and do not stage the native owner.
+
+Acceptance is stored as the board ID in `/etc/getdomains/offload-experimental-board`.
+Every reinstallation replaces/removes it based on a fresh answer, and uninstall
+removes it. Startup requires a matching board ID, medium mode and a successful
+platform probe. It never interprets consent as permission for strict, another
+architecture/driver/version/topology, or incompatible policy. The CLI status
+and diagnostics report `experimental_opt_in`; LuCI also shows an experimental
+notice. This flag records consent, not proof of active hardware forwarding;
+the runtime state/admission and actual HW_OFFLOAD/PPE entries must be inspected.
+Physical validation of these additional boards is pending. Do not add them to
+the qualified allowlist solely because they pass this probe.
+The [2026-10-16 tests](../tests/results/offload-experimental-2026-10-16.md)
+exercise this path on AX3000T with a simulated unqualified board identity;
+they do not qualify another physical model.
+
 Cold boot starts with empty admission and waits for a usable WAN default route
 and five stable policy samples, for up to 60 iterations. Native startup reloads
 may run while the private table is still empty. Missing WAN keeps software

@@ -15,6 +15,9 @@ ERRORS=0
 if [ -x /usr/libexec/getdomains-offload ]; then
     offload_status=$(/usr/libexec/getdomains-offload status) || fail 'Offload controller status is unavailable'
     printf '%s\n' "$offload_status"
+    if printf '%s\n' "$offload_status" | grep -q '^experimental_opt_in=1$'; then
+        warn 'Offload: experimental router profile accepted; physical hardware operation is unverified'
+    fi
     if printf '%s\n' "$offload_status" | grep -q '^reboot_required=1$'; then
         warn 'Offload: reboot required to apply saved policy; existing hardware decisions may remain'
     else

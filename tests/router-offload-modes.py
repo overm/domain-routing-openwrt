@@ -95,7 +95,9 @@ exec sh "$backup/restore.sh" "$backup"
                 if path.is_file(): d.upload(path.read_bytes(), source + '/' + path.name)
             binary = ROOT/'offload/bin/aarch64_cortex-a53/getdomains-offload-owner'
             d.upload(binary.read_bytes(), source + '/offload/bin/aarch64_cortex-a53/getdomains-offload-owner')
-            d.upload(binary.with_name(binary.name+'.sha256').read_bytes(), source + '/offload/bin/aarch64_cortex-a53/getdomains-offload-owner.sha256')
+            # Match raw Git downloads even from a Windows checkout.
+            checksum = binary.with_name(binary.name+'.sha256').read_text().strip() + '\n'
+            d.upload(checksum, source + '/offload/bin/aarch64_cortex-a53/getdomains-offload-owner.sha256')
             d.run('chmod 0755 ' + source + '/offload/bin/aarch64_cortex-a53/getdomains-offload-owner')
             code, output = d.run('for f in ' + source + '/*.sh; do sh -n "$f" || exit; done; '
                                 'for f in ' + source + '/*.uc; do ucode -c "$f" >/dev/null || exit; done; '
