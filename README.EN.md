@@ -28,6 +28,8 @@ Append options after the script name.
 
 The default `medium` mode accelerates eligible direct IPv4 NAT connections; network policy changes require Save & Apply followed by reboot. The `strict` mode applies supported changes with a brief wired LAN/WAN interruption and breaks IPv4 connections, while `disable` turns acceleration off. Hardware acceleration is experimental and is not guaranteed on all routers; `--kill-switch` disables it entirely, and mode changes require reinstallation and reboot.
 
+On other compatible MT7981/MT7986 routers, the installer offers experimental `medium` only with explicit consent (`y` or `yes`; the default is no). Declining or failing compatibility checks continues installation without acceleration; `strict` remains limited to the qualified Xiaomi AX3000T profile. Kernel, nftables and port-topology requirements still apply.
+
 [More details](README.EN.detailed.md#--offload-mediumstrictdisable)
 
 #### [`--no-icanhazip`](README.EN.detailed.md#--no-icanhazip)

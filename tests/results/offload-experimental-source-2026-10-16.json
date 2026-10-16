@@ -1,0 +1,30 @@
+{
+  "branch": "codex/experimental-medium-offload",
+  "base_commit": "39534fcc879152830d0ebaa63acea9e069c32828",
+  "working_tree_uncommitted": true,
+  "host_tests": {
+    "status": "passed",
+    "python_tests": 87,
+    "javascript_assertions": 16,
+    "shell_syntax": true,
+    "javascript_syntax": true,
+    "diff_whitespace": true
+  },
+  "sha256": {
+    "getdomains-check.sh": "a6b1920e164bdb33e90c1c886e7af15502b9321b4a6ac59d39a6580192cfd4c4",
+    "getdomains-compile.awk": "bd9b8e845abd3ce8fd754debd60cf432aa51555346d05fdb6bc42885585041cd",
+    "getdomains-install.sh": "0936c3638a7ed521e12e078347dacbf57f32422aa3c72ffd658ac711b3090f61",
+    "getdomains-offload-job.uc": "58e1290549f2ad643798cac48c48c763f5eb0543ade539d7a3e25ffead1850fa",
+    "getdomains-offload-luci.uc": "fb82c0d2905e85bb92286535aa445347cdee36917291835035ba879beb20c455",
+    "getdomains-offload-menu.json": "2629608dd2ea90ed9ba0370cef48e8b3cd32a151742e4344199ad8156af6bec8",
+    "getdomains-offload-service.sh": "6f3bb7879f5f3da1cc50d4a9284dba694eb8266c5b99f24deb97250eac6bcde2",
+    "getdomains-offload-setup.uc": "f34496164dd64ce0bebe40d649f9ccd1dc798d720a41e9b799d7d0183d96b184",
+    "getdomains-offload-status.js": "1333e15da26053519fc17df83e11ad188bedc394915dfc4e03e0b12acae2aa96",
+    "getdomains-offload.js": "e01b8f39d53a0de4beb872a1680cab6aa57a396b24449d001711a23cbd6cf515",
+    "getdomains-offload.sh": "867877c557dfdcc7fe5528c9e0c4e8b7d2ddd3171559384d135f1576b6db9cea",
+    "getdomains-runtime.sh": "55112738635a51689b0106c6a4da549fff1c9f072fbf9548ae33f40b6594f49c",
+    "getdomains-uninstall.sh": "09b1644a3761995924d00576fd06a5618854a7ada12f9a583e7ba94f657010ea",
+    "offload/bin/aarch64_cortex-a53/getdomains-offload-owner": "b12b5618503bbe2b942fe145d940436f2683d73d38c68cdf623f43a2d4b628ba",
+    ".gitattributes": "54ce1c6d62c770fe63bdebb2569e66dc5e3d1dc9b06b5f59c4b67be6293a2d94"
+  }
+}

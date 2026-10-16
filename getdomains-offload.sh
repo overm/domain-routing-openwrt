@@ -29,12 +29,59 @@ gd_identifier() {
     case $1 in ''|*[!a-zA-Z0-9_.:-]*) return 1;; esac
     [ "${#1}" -le 32 ]
 }
-gd_supported() {
-    [ "$(jsonfilter -i /etc/board.json -e '@.model.id')" = xiaomi,mi-router-ax3000t ] &&
+gd_platform_profile() {
+    # Read-only probe shared by installation and startup. Consent may waive
+    # board qualification, never these ABI, driver or topology requirements.
     [ "$(uname -m)" = aarch64 ] && [ "$(uname -r)" = 6.12.94 ] &&
-    nft --version | grep -q 'v1.1.6 ' &&
+    nft --version | grep -q 'v1.1.6 ' || {
+        printf 'Offload requires aarch64, Linux 6.12.94 and nftables 1.1.6.\n' >&2; return 1;
+    }
     [ -r /sys/kernel/debug/ppe0/bind ] && [ -r /sys/kernel/debug/ppe1/bind ] &&
-    [ -d /sys/class/net/eth0 ] && [ -d /sys/class/net/wan ]
+    cat /sys/kernel/debug/ppe0/bind /sys/kernel/debug/ppe1/bind >/dev/null &&
+    [ -d /sys/class/net/eth0 ] && [ -d /sys/class/net/wan ] || {
+        printf 'Offload requires readable PPE0/PPE1 dumps and eth0/wan devices.\n' >&2; return 1;
+    }
+    board=$(jsonfilter -i /etc/board.json -e '@.model.id') || return 1
+    [ -n "$board" ] || return 1
+    if [ "$board" = xiaomi,mi-router-ax3000t ]; then printf 'qualified\n'; return 0; fi
+    gd_experimental_platform || {
+        printf 'Board does not match the experimental MT7981/MT7986 Ethernet profile.\n' >&2; return 1;
+    }
+    printf 'experimental\n'
+}
+gd_experimental_platform() {
+    driver=$(readlink /sys/class/net/eth0/device/driver) || return 1
+    case $driver in */mtk_soc_eth) ;; *) return 1;; esac
+    compatible=$(tr '\000' '\n' < /sys/class/net/eth0/device/of_node/compatible) || return 1
+    printf '%s\n' "$compatible" | grep -qxE 'mediatek,mt798(1|6)-eth' || return 1
+    [ ! -e /sys/kernel/debug/ppe2 ] || return 1
+    [ "$(ubus call network.interface.lan status | jsonfilter -e '@.l3_device')" = br-lan ] &&
+    [ "$(ubus call network.interface.wan status | jsonfilter -e '@.device')" = wan ] || return 1
+    [ ! -e /sys/class/net/br-lan/brif/wan ] || return 1
+    parent=$(cat /sys/class/net/eth0/ifindex) || return 1
+    case $parent in ''|*[!0-9]*) return 1;; esac
+    lan_ports=$(jsonfilter -i /etc/board.json -e '@.network.lan.ports[*]') || return 1
+    [ -n "$lan_ports" ] || return 1
+    for port in $lan_ports; do
+        gd_identifier "$port" || return 1
+        [ "$port" != wan ] && [ "$port" != eth0 ] && [ -d "/sys/class/net/br-lan/brif/$port" ] &&
+        [ "$(cat "/sys/class/net/$port/iflink")" = "$parent" ] || return 1
+    done
+    [ "$(cat /sys/class/net/wan/iflink)" = "$parent" ]
+}
+gd_experimental_consent() {
+    [ "$(gd_mode)" = medium ] && [ -s /etc/getdomains/offload-experimental-board ] || return 1
+    consent_board=$(jsonfilter -i /etc/board.json -e '@.model.id') || return 1
+    [ -n "$consent_board" ] || return 1
+    [ "$(cat /etc/getdomains/offload-experimental-board)" = "$consent_board" ]
+}
+gd_supported() {
+    profile=$(gd_platform_profile) || return 1
+    case $profile in
+        qualified) return 0;;
+        experimental) gd_experimental_consent;;
+        *) return 1;;
+    esac
 }
 gd_empty() {
     [ -r /sys/kernel/debug/ppe0/bind ] && [ -r /sys/kernel/debug/ppe1/bind ] || return 1
@@ -403,6 +450,7 @@ gd_confirmed() {
 }
 gd_status() {
     printf 'mode=%s\nstate=%s\n' "$(gd_mode)" "$(cat "$GD_DIR/state" 2>/dev/null || printf STOPPED)"
+    if gd_experimental_consent; then printf 'experimental_opt_in=1\n'; else printf 'experimental_opt_in=0\n'; fi
     if [ -f /etc/getdomains/offload-reboot-required ]; then printf 'reboot_required=1\n'; else printf 'reboot_required=0\n'; fi
     [ ! -S "$GD_DIR/owner.sock" ] || gd_call STATUS
 }
@@ -518,6 +566,7 @@ gd_watch() {
 
 # Device dispatcher: never sourced by host-safe tests.
 case ${1:-} in
+    platform-profile) gd_platform_profile;;
     watch) gd_watch;;
     status) gd_status;;
     software-ok) gd_software_ok;;

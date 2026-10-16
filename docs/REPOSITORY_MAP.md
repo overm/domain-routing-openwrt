@@ -86,7 +86,11 @@ dnsmasq nfset files only; there is no pre-firewall4 ipset branch.
    cannot combine two runtime registers in an nft bitwise expression.
    Global flow offloading is disabled. `--offload` defaults to medium and owns
    a separate flowtable for explicitly classified direct IPv4 SNAT connections
-   on the qualified profile. Strict changes use a held physical barrier;
+   on the qualified profile, or in medium on a compatible MT7981/MT7986 board
+   after explicit installation consent. The controller's read-only
+   `platform-profile` probe is shared with the installer; consent is board-bound,
+   renewed on reinstallation, and never bypasses hardware/ABI checks. Strict
+   remains restricted to the qualified profile. Strict changes use a held physical barrier;
    kill-switch and incompatible configurations disable hardware admission.
    Installation/mode changes require reboot. See `docs/OFFLOAD_MODES.md`.
    Routine DNS changes never reload firewall or

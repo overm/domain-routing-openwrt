@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "consent_marker_removed": true,
+  "board_identity_restored": true,
+  "cases": [
+    {
+      "case": "experimental-reinstall-for-uninstall",
+      "passed": true,
+      "seconds": 79.73
+    },
+    {
+      "case": "live-owner-uninstall",
+      "passed": true,
+      "seconds": 49.02
+    }
+  ]
+}

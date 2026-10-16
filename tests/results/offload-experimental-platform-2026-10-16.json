@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "board_identity_simulated": true,
+  "cases": [
+    {
+      "case": "qualified-profile-uses-real-hardware",
+      "passed": true
+    },
+    {
+      "case": "unqualified-profile-matches-real-driver-ppe-and-ports",
+      "passed": true
+    },
+    {
+      "case": "medium-requires-consent",
+      "passed": true
+    },
+    {
+      "case": "medium-accepts-board-bound-consent",
+      "passed": true
+    },
+    {
+      "case": "other-board-consent-is-rejected",
+      "passed": true
+    },
+    {
+      "case": "consent-cannot-enable-strict",
+      "passed": true
+    },
+    {
+      "case": "consent-cannot-enable-disabled-mode",
+      "passed": true
+    },
+    {
+      "case": "qualified-strict-retains-existing-support",
+      "passed": true
+    }
+  ]
+}

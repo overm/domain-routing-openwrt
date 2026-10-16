@@ -149,10 +149,36 @@ for resource in getdomains-offload-luci.uc getdomains-offload-job.uc getdomains-
     esac
 done
 OWNER_REQUIRED=0
-if [ "$OFFLOAD_MODE" != disable ] && [ "$KILL_SWITCH" = 0 ] &&
-    [ "$(jsonfilter -i /etc/board.json -e '@.model.id')" = xiaomi,mi-router-ax3000t ] &&
-    [ "$(uname -m)" = aarch64 ] && [ "$(uname -r)" = 6.12.94 ] &&
-    nft --version | grep -q 'v1.1.6 '; then
+EXPERIMENTAL_BOARD=
+if [ "$OFFLOAD_MODE" != disable ] && [ "$KILL_SWITCH" = 0 ]; then
+    profile=$(sh /tmp/getdomains-offload.sh.$$ platform-profile) || profile=unsupported
+    case $profile in
+        qualified) ;;
+        experimental)
+            if [ "$OFFLOAD_MODE" = medium ]; then
+                red 'WARNING: Hardware acceleration has not been tested on this router.'
+                red 'Existing accelerated connections may keep old routes or bypass new firewall restrictions until reboot.'
+                red 'Connectivity may fail. Reboot is required after installation and policy changes.'
+                printf 'Enable experimental medium acceleration at your own risk? [y/N]: '
+                answer=
+                if IFS= read -r answer; then
+                    case $answer in
+                        y|Y|yes|YES) EXPERIMENTAL_BOARD=$(jsonfilter -i /etc/board.json -e '@.model.id') || EXPERIMENTAL_BOARD=;;
+                    esac
+                fi
+                if [ -z "$EXPERIMENTAL_BOARD" ]; then OFFLOAD_MODE=disable; fi
+            else
+                red 'Strict acceleration is limited to the qualified Xiaomi AX3000T profile.'
+                OFFLOAD_MODE=disable
+            fi
+            ;;
+        *) OFFLOAD_MODE=disable;;
+    esac
+    if [ "$OFFLOAD_MODE" = disable ]; then
+        green 'Continuing installation without hardware acceleration.'
+    fi
+fi
+if [ "$OFFLOAD_MODE" != disable ] && [ "$KILL_SWITCH" = 0 ]; then
     OWNER_REQUIRED=1
     owner_url=${GETDOMAINS_OFFLOAD_OWNER_URL:-$SCRIPT_BASE_URL/offload/bin/aarch64_cortex-a53/getdomains-offload-owner}
     curl -fL --connect-timeout 10 --max-time 120 "$owner_url" -o /tmp/getdomains-offload-owner.$$ || exit 1
@@ -211,6 +237,11 @@ trap - 0
 
 mkdir -p /tmp/dnsmasq.d /tmp/lst /etc/getdomains /etc/sing-box /etc/hotplug.d/iface /etc/iproute2
 printf '%s\n' "$OFFLOAD_MODE" > /etc/getdomains/offload-mode
+# Reinstallation always requires a fresh explicit opt-in for an unqualified board.
+rm -f /etc/getdomains/offload-experimental-board
+if [ -n "$EXPERIMENTAL_BOARD" ]; then
+    printf '%s\n' "$EXPERIMENTAL_BOARD" > /etc/getdomains/offload-experimental-board
+fi
 cat /proc/sys/kernel/random/boot_id > /etc/getdomains/offload-reboot-required
 if [ ! -f /etc/getdomains/fw4.original ]; then cp -p /sbin/fw4 /etc/getdomains/fw4.original; fi
 cat > /sbin/fw4 <<'EOF'

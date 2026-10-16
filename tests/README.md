@@ -22,6 +22,24 @@ They do not validate nft syntax or kernel behavior; that requires the target.
 
 Read [the supported contract](../docs/OFFLOAD_MODES.md). The initial hardware
 profile is experimental and specific to AX3000T / kernel 6.12.94 / nft 1.1.6.
+Additional MT7981/MT7986 boards have an opt-in medium path, not physical
+qualification. Host tests cover the shared platform probe with fake sysfs,
+driver/device-tree/port/version rejection, board-bound medium-only consent,
+yes/no/empty/EOF installation answers, strict fallback and kill-switch precedence.
+Once a new testbed is available, verify accepted and declined installations,
+reinstallation consent reset, cold-boot state, physical TCP/UDP HW_OFFLOAD/PPE
+entries, tunnel exclusions and medium policy-change/reboot behavior before
+claiming hardware support. Keep the existing qualified-profile strict suite.
+`router-offload-platform.py` is a WAN-independent fixture for the qualified
+AX3000T testbed. It uses the real driver, sysfs, PPE dumps and port topology,
+redirecting only board metadata and consent to private temporary files. Its
+eight cases check experimental detection and medium-only board-bound consent;
+they do not qualify another physical model or prove accelerated forwarding.
+The [2026-10-16 report](results/offload-experimental-2026-10-16.md) records the
+installation, consent, physical forwarding and lifecycle checks on AX3000T
+with a simulated unqualified board identity and a controlled test TUN peer.
+Invoke `router-offload-platform.py` with the same authorization, known-hosts, output and private-evidence
+arguments as `router-offload-unit.py` below.
 Host tests also cover mode parsing, physical-barrier ordering, generation
 fencing, failed commands even inside shell conditionals, closed admission during
 confirmation, queue deadlines, and the real JavaScript apply/command transport.
@@ -52,6 +70,8 @@ router. The installed strict apply tests disconnect Ethernet and may clear all
 IPv4 connections or reboot on failure. The ucode fixture mocks all mutations;
 only private fixture copies are written. Owner faults run in a network namespace
 and use a marker callback instead of reboot. Neither proves physical PPE use.
+Checksum metadata must use LF (enforced by `.gitattributes`); the uploader also
+normalizes the checksum line to match raw Git downloads on Windows.
 The NAT fixture must originate on a physical LAN client whose gateway is the
 target, and asserts real HW_OFFLOAD/PPE entries. `--protocol tcp` uses framed DNS
 over TCP. Public DNS load is capped at 500 queries/second; large-flow hardware

@@ -81,10 +81,25 @@ sh /tmp/getdomains-install.sh --offload strict
 reboot
 ```
 
-The hardware profile is currently limited to **Xiaomi AX3000T / MT7981,
+The qualified hardware profile is **Xiaomi AX3000T / MT7981,
 OpenWrt 25.12.5, Linux 6.12.94, nftables 1.1.6**, using `br-lan → wan`.
-Other platforms and incompatible policies retain normal software routing.
-The profile remains experimental; outstanding physical load and long-duration
+Other **MT7981/MT7986** models can opt into experimental `medium`. The installer
+requires aarch64, the same kernel and nftables versions, the `mtk_soc_eth` driver,
+readable PPE0/PPE1 dumps, and wired LAN/WAN ports sharing the `eth0` parent.
+LAN ports from board.json must belong to `br-lan`; WAN must use the `wan` device.
+PPPoE, other port topologies and a third PPE do not match this profile.
+After a successful check the installer warns about the risks and asks:
+`Enable experimental medium acceleration at your own risk? [y/N]:`.
+Only `y`, `Y`, `yes` or `YES` followed by Enter enables it. An empty response,
+declining, end of input or incompatibility selects `disable` and continues installation.
+Consent is saved for that board and requested again on reinstallation; compatibility
+is rechecked on every boot. Diagnostics and LuCI identify the experimental profile.
+The additional models have not yet been tested on physical hardware.
+
+On other models, `--offload strict` continues installation with `disable`, without
+offering a bypass. `--kill-switch` and `--offload disable` do not offer experimental
+acceleration. Incompatible network policies retain ordinary routing regardless of
+consent. Even the qualified profile remains experimental; outstanding physical load and long-duration
 qualification is listed in [offload documentation](docs/OFFLOAD_MODES.md).
 Strict installation checks the native LuCI views and aborts before network
 configuration changes if their installed version is not recognized.

@@ -1,0 +1,17 @@
+{
+  "status": "passed",
+  "baseline_hashes_matched": 17,
+  "all_backup_regular_files_matched": 18,
+  "all_backup_symlinks_matched": 33,
+  "rc_symlink_inventory_restored": true,
+  "network_namespaces_clean": true,
+  "package_inventory_restored": true,
+  "project_artifacts_absent": true,
+  "test_recovery_disarmed": true,
+  "original_dns_and_https_work": true,
+  "original_sing_box_absence_restored": true,
+  "reboot_completed": true,
+  "restored_package_count": 159,
+  "apk_world_matches_firmware": true,
+  "local_test_proxy_stopped": true
+}

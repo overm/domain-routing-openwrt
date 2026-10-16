@@ -1,0 +1,90 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "qualified-strict-install",
+      "passed": true,
+      "seconds": 66.17
+    },
+    {
+      "case": "native-ucode",
+      "passed": true,
+      "seconds": 5.91
+    },
+    {
+      "case": "isolated-owner-transaction",
+      "passed": true,
+      "seconds": 10.22
+    },
+    {
+      "case": "isolated-owner-queue",
+      "passed": true,
+      "seconds": 14.36
+    },
+    {
+      "case": "isolated-owner-empty-queue",
+      "passed": true,
+      "seconds": 18.44
+    },
+    {
+      "case": "strict-native-luci",
+      "passed": true,
+      "seconds": 201.02
+    },
+    {
+      "case": "strict-native-commands",
+      "passed": true,
+      "seconds": 83.95
+    },
+    {
+      "case": "strict-physical-None",
+      "passed": true,
+      "seconds": 36.83
+    },
+    {
+      "case": "strict-physical-worker",
+      "passed": true,
+      "seconds": 58.52
+    },
+    {
+      "case": "strict-physical-standby",
+      "passed": true,
+      "seconds": 58.22
+    },
+    {
+      "case": "strict-physical-keeper",
+      "passed": true,
+      "seconds": 53.25
+    },
+    {
+      "case": "strict-physical-supervisor",
+      "passed": true,
+      "seconds": 90.84
+    },
+    {
+      "case": "qualified-strict-kill",
+      "passed": true,
+      "seconds": 63.41
+    },
+    {
+      "case": "strict-software-native-rollback",
+      "passed": true,
+      "seconds": 93.49
+    },
+    {
+      "case": "qualified-medium-kill",
+      "passed": true,
+      "seconds": 69.88
+    },
+    {
+      "case": "qualified-medium",
+      "passed": true,
+      "seconds": 75.64
+    },
+    {
+      "case": "qualified-disable",
+      "passed": true,
+      "seconds": 63.25
+    }
+  ]
+}

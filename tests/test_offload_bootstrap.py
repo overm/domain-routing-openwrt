@@ -14,7 +14,7 @@ ASSETS = ('getdomains-offload-luci.uc', 'getdomains-offload-job.uc',
 
 
 class OffloadBootstrapTests(unittest.TestCase):
-    def run_stage(self, mode='medium', fail='', corrupt='', kill='0', qualified='1'):
+    def run_stage(self, mode='medium', fail='', corrupt='', kill='0', qualified='1', answer=''):
         source = (ROOT/'getdomains-install.sh').read_text()
         stage = 'cleanup_support() {' + source.split('cleanup_support() {', 1)[1].split('\nDEFER_APPLY=0', 1)[0]
         self.assertNotRegex(stage, r'(?<![\w-])(?:uci|apk|reboot|ip|mv)(?![\w.-])')
@@ -32,6 +32,7 @@ cd "$1"
 ROOT=$2; OFFLOAD_MODE=$3; FAILED=$4; CORRUPT=$5; KILL_SWITCH=$6; QUALIFIED=$7
 SCRIPT_BASE_URL=https://example.invalid/pinned-ref
 red() { printf '%s\n' "$*" >&2; }
+green() { printf '%s\n' "$*"; }
 support_download_error() { red "invalid $1"; }
 curl() {
     url= output=
@@ -60,14 +61,22 @@ jsonfilter() {
     case "$*" in *board.json*) [ "$QUALIFIED" = 1 ] && printf 'xiaomi,mi-router-ax3000t\n' || printf 'unsupported\n';;
         *) ! tail -c 7 "$2" | grep -q INVALID;; esac
 }
+sh() {
+    case "$*" in *getdomains-offload.sh.*' platform-profile')
+        case $QUALIFIED in 1) echo qualified;; experimental) echo experimental;; *) return 1;; esac;;
+        *) return 1;;
+    esac
+}
 uname() { case $1 in -m) echo aarch64;; -r) echo 6.12.94;; esac; }
 nft() { echo 'nftables v1.1.6 (test)'; }
-''' + stage + '\nprintf "staging-ok owner=%s\\n" "$OWNER_REQUIRED"\n', encoding='utf-8', newline='\n')
+''' + stage + '\nprintf "staging-ok owner=%s mode=%s consent=%s\\n" "$OWNER_REQUIRED" "$OFFLOAD_MODE" "$EXPERIMENTAL_BOARD"\n', encoding='utf-8', newline='\n')
             environment = dict(os.environ, ABI_VERSION='2' if corrupt == 'abi' else '1')
             result = subprocess.run([SH, str(script).replace('\\', '/'),
                                      str(directory).replace('\\', '/'), str(ROOT).replace('\\', '/'),
                                      mode, fail, corrupt, kill, qualified], env=environment,
-                                    text=True, capture_output=True)
+                                    input=answer.encode(), capture_output=True)
+            result.stdout = result.stdout.decode()
+            result.stderr = result.stderr.decode()
             downloads = (directory/'downloads').read_text().splitlines()
             return result, downloads, list((directory/'staged').iterdir())
 
@@ -82,12 +91,60 @@ nft() { echo 'nftables v1.1.6 (test)'; }
             self.assertTrue(all(u.startswith('https://example.invalid/pinned-ref/') for u in urls))
             self.assertEqual(remaining, [])
 
+    def test_experimental_medium_requires_explicit_consent(self):
+        for answer, owner in [('', 0), ('\n', 0), ('n\n', 0), ('anything\n', 0),
+                              ('y', 0), ('y\n', 1), ('yes\n', 1), ('Y\n', 1), ('YES\n', 1)]:
+            with self.subTest(answer=answer):
+                result, urls, remaining = self.run_stage(qualified='experimental', answer=answer)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn('staging-ok owner=' + str(owner), result.stdout)
+                self.assertIn('mode=' + ('medium' if owner else 'disable'), result.stdout)
+                self.assertIn('consent=' + ('unsupported' if owner else '') + '\n', result.stdout)
+                self.assertIn('bypass new firewall restrictions until reboot', result.stderr)
+                self.assertEqual(any(u.endswith('/getdomains-offload-owner') for u in urls), bool(owner))
+                self.assertEqual(remaining, [])
+
+    def test_consent_cannot_enable_strict_incompatible_disabled_or_kill_switch(self):
+        for mode, profile, kill, expected in [('strict', 'experimental', '0', 'disable'),
+                                               ('medium', '0', '0', 'disable'),
+                                               ('disable', 'experimental', '0', 'disable'),
+                                               ('medium', 'experimental', '1', 'medium')]:
+            result, urls, remaining = self.run_stage(mode=mode, qualified=profile, kill=kill, answer='yes\n')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('staging-ok owner=0 mode=' + expected + ' consent=\n', result.stdout)
+            self.assertNotIn('at your own risk?', result.stdout)
+            self.assertFalse(any(u.endswith('/getdomains-offload-owner') for u in urls))
+            self.assertEqual(remaining, [])
+
     def test_each_failed_asset_and_owner_download_is_cleaned_before_mutation(self):
         for name in (*ASSETS, 'getdomains-offload-owner', 'getdomains-offload-owner.sha256'):
             result, _, remaining = self.run_stage(fail=name)
             self.assertNotEqual(result.returncode, 0, name)
             self.assertNotIn('staging-ok', result.stdout)
             self.assertEqual(remaining, [], name)
+
+    def test_reinstallation_replaces_or_removes_previous_board_consent(self):
+        source = (ROOT/'getdomains-install.sh').read_text()
+        persistence = source[source.index("printf '%s\\n' \"$OFFLOAD_MODE\" > /etc/getdomains/offload-mode"):]
+        persistence = persistence.split('\ncat /proc/sys/kernel/random/boot_id', 1)[0]
+        persistence = persistence.replace('/etc/getdomains/', './')
+        self.assertNotIn('/etc/', persistence)
+        with tempfile.TemporaryDirectory() as name:
+            directory = Path(name)
+            script = directory/'persist.sh'
+            script.write_text('set -eu\ncd "$1"\nOFFLOAD_MODE=$2\nEXPERIMENTAL_BOARD=$3\n' + persistence,
+                              newline='\n')
+            for mode, consent in [('medium', 'vendor,new-router'), ('disable', ''), ('strict', '')]:
+                marker = directory/'offload-experimental-board'
+                marker.write_text('previous,accepted-router\n')
+                result = subprocess.run([SH, str(script).replace('\\', '/'), name.replace('\\', '/'),
+                                         mode, consent], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((directory/'offload-mode').read_text(), mode + '\n')
+                if consent:
+                    self.assertEqual(marker.read_text(), consent + '\n')
+                else:
+                    self.assertFalse(marker.exists())
 
     def test_invalid_ucode_json_checksum_abi_and_strict_preflight_abort(self):
         for name in (*ASSETS[:4], 'checksum-format', 'checksum-mismatch', 'abi', 'preflight'):
@@ -104,6 +161,8 @@ nft() { echo 'nftables v1.1.6 (test)'; }
         self.assertNotIn(b'/tmp/getdomains-offload-unit', data)
         self.assertEqual(hashlib.sha256(data).hexdigest(),
                          binary.with_name(binary.name+'.sha256').read_text().strip())
+        self.assertEqual(binary.with_name(binary.name+'.sha256').read_bytes(),
+                         (hashlib.sha256(data).hexdigest()+'\n').encode('ascii'))
 
 
 if __name__ == '__main__':
